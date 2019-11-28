@@ -33,10 +33,16 @@ gth_file_data_cmp_filename (GthFileData *a,
 {
 	const char *key_a, *key_b;
 
-	key_a = gth_file_data_get_filename_sort_key (a);
-	key_b = gth_file_data_get_filename_sort_key (b);
+	if (a->info == NULL)
+		key_a = NULL;
+	else
+		key_a = g_file_info_get_display_name (a->info);
+	if (b->info == NULL)
+		key_b = NULL;
+	else
+		key_b = g_file_info_get_display_name (b->info);
 
-	return strcmp (key_a, key_b);
+	return strcoll (key_a, key_b);
 }
 
 
