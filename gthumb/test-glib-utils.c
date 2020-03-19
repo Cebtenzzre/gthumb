@@ -51,7 +51,7 @@ test_regexp (void)
 
 	re = g_regex_new ("%prop\\{([^}]+)\\}", 0, 0, NULL);
 	a = g_regex_split (re, "thunderbird -compose %prop{ Exif::Image::DateTime } %ask %prop{ File::Size }", 0);
-	for (i = 0, n = 0; a[i] != NULL; i += 2)
+	for (i = 1, n = 0; a[i] != NULL; i += 2)
 		n++;
 
 	b = g_new (char *, n + 1);
