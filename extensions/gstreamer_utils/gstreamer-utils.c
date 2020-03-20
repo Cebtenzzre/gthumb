@@ -125,7 +125,11 @@ metadata_extractor_free (MetadataExtractor *extractor)
 	reset_extractor_data (extractor);
 	gst_element_set_state (extractor->playbin, GST_STATE_NULL);
 	gst_element_get_state (extractor->playbin, NULL, NULL, MAX_WAITING_TIME);
-	gst_object_unref (GST_OBJECT (extractor->playbin));
+	GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (extractor->playbin));
+	if (bus != NULL) {
+		g_object_unref (extractor->playbin);
+		g_object_unref (bus);
+	}
 	g_slice_free (MetadataExtractor, extractor);
 }
 
@@ -293,8 +297,8 @@ add_metadata_from_tag (GFileInfo         *info,
 				g_date_strftime (buf, 10, "%x %X", ret);
 				formatted = g_strdup (buf);
 				add_metadata (info, tag_key, raw, formatted);
+				g_date_free (ret);
 			}
-			g_free (ret);
 		}
         }
 }
@@ -507,7 +511,9 @@ update_stream_info (MetadataExtractor *extractor)
 				caps_set (audio_pad, extractor, "audio");
 				gst_caps_unref (caps);
 			}
+			gst_object_unref (GST_OBJECT (audio_pad));
 		}
+		gst_object_unref (GST_OBJECT (audio_sink));
 	}
 
 	if (video_sink != NULL) {
@@ -522,7 +528,9 @@ update_stream_info (MetadataExtractor *extractor)
 				caps_set (video_pad, extractor, "video");
 				gst_caps_unref (caps);
 			}
+			gst_object_unref (GST_OBJECT (video_pad));
 		}
+		gst_object_unref (GST_OBJECT (video_sink));
 	}
 }
 
@@ -545,8 +553,10 @@ message_loop_to_state_change (MetadataExtractor *extractor,
 		GstMessage *message;
 
 		message = gst_bus_timed_pop_filtered (bus, MAX_WAITING_TIME, events);
-		if (message == NULL)
+		if (message == NULL) {
+			gst_object_unref (GST_OBJECT (bus));
 			goto timed_out;
+		}
 
 		switch (GST_MESSAGE_TYPE (message)) {
 		case GST_MESSAGE_STATE_CHANGED: {
@@ -570,6 +580,7 @@ message_loop_to_state_change (MetadataExtractor *extractor,
 
 			if (new_state == state) {
 				gst_message_unref (message);
+				gst_object_unref (GST_OBJECT (bus));
 				goto success;
 			}
 
@@ -601,8 +612,9 @@ message_loop_to_state_change (MetadataExtractor *extractor,
 			/*g_warning ("Error: %s (%s)", gsterror->message, debug);*/
 
 			g_error_free (gsterror);
-			gst_message_unref (message);
 			g_free (debug);
+			gst_message_unref (message);
+			gst_object_unref (GST_OBJECT (bus));
 			goto error;
 		}
 			break;
@@ -610,6 +622,7 @@ message_loop_to_state_change (MetadataExtractor *extractor,
 		case GST_MESSAGE_EOS: {
 			g_warning ("Media file could not be played.");
 			gst_message_unref (message);
+			gst_object_unref (GST_OBJECT (bus));
 			goto error;
 		}
 			break;
@@ -692,7 +705,7 @@ _gst_playbin_get_current_frame (GstElement  *playbin,
 
 	sample = NULL;
 	g_object_get (sink, "last-sample", &sample, NULL);
-	g_object_unref (sink);
+	gst_object_unref (GST_OBJECT (sink));
 
 	if (sample == NULL) {
 		g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED, "Could not take the screenshot: %s", "failed to retrieve video frame");
@@ -745,6 +758,7 @@ _gst_playbin_get_current_frame (GstElement  *playbin,
 	sample_caps = gst_sample_get_caps (sample);
 	if (sample_caps == NULL) {
 		g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED, "Could not take the screenshot: %s", "no caps on output buffer");
+		gst_sample_unref (sample);
 		return NULL;
 	}
 
@@ -757,6 +771,7 @@ _gst_playbin_get_current_frame (GstElement  *playbin,
 
 	if (! _g_str_equal (format, "RGB") && ! _g_str_equal (format, "RGBA")) {
 		g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED, "Could not take the screenshot: %s", "wrong format");
+		gst_sample_unref (sample);
 		return NULL;
 	}
 

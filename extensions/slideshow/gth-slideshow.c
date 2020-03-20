@@ -270,12 +270,16 @@ gth_slideshow_finalize (GObject *object)
 		gst_element_set_state (self->priv->playbin, GST_STATE_NULL);
 		gst_element_get_state (self->priv->playbin, NULL, NULL, GST_CLOCK_TIME_NONE);
 		GstBus *bus = gst_element_get_bus (self->priv->playbin);
-		if (bus != NULL) {
+		if (bus != NULL)
 			gst_bus_remove_signal_watch (bus);
-			g_object_unref (bus);
-		}
+
 		gst_object_unref (GST_OBJECT (self->priv->playbin));
 		self->priv->playbin = NULL;
+
+		if (bus != NULL) {
+			g_signal_handlers_disconnect_by_data (bus, self);
+			g_object_unref (bus);
+		}
 	}
 #endif
 

@@ -700,7 +700,9 @@ update_stream_info (GthMediaViewerPage *self)
 				self->priv->has_audio = TRUE;
 				gst_caps_unref (caps);
 			}
+			gst_object_unref (GST_OBJECT (audio_pad));
 		}
+		gst_object_unref (GST_OBJECT (audio_sink));
 	}
 
 	if (video_sink != NULL) {
@@ -727,7 +729,9 @@ update_stream_info (GthMediaViewerPage *self)
 
 				gst_caps_unref (caps);
 			}
+			gst_object_unref (GST_OBJECT (video_pad));
 		}
+		gst_object_unref (GST_OBJECT (video_sink));
 	}
 
 	gtk_stack_set_visible_child_name (GTK_STACK (self->priv->area_box), self->priv->has_video ? "video-area" : "audio-area");
@@ -1146,7 +1150,7 @@ gth_media_viewer_page_real_activate (GthViewerPage *base,
 
 	/* audio area */
 
-	self->priv->audio_area = gtk_drawing_area_new ();
+	self->priv->audio_area = g_object_ref_sink (gtk_drawing_area_new ());
 	gtk_style_context_add_class (gtk_widget_get_style_context (self->priv->audio_area), "video-player");
 	gtk_widget_add_events (self->priv->audio_area, (gtk_widget_get_events (self->priv->audio_area)
 						  | GDK_EXPOSURE_MASK
@@ -1349,8 +1353,8 @@ gth_media_viewer_page_real_deactivate (GthViewerPage *base)
         }
 
 	if (self->priv->playbin != NULL) {
-		double   volume;
-		gboolean mute;
+		double    volume;
+		gboolean  mute;
 
 		g_object_get (self->priv->playbin, "volume", &volume, "mute", &mute, NULL);
 		g_settings_set_int (self->priv->settings, PREF_GSTREAMER_TOOLS_VOLUME, (int) (volume * 100.0));
@@ -1358,20 +1362,31 @@ gth_media_viewer_page_real_deactivate (GthViewerPage *base)
 
 		g_settings_set_boolean (self->priv->settings, PREF_GSTREAMER_ZOOM_TO_FIT, self->priv->fit_if_larger);
 
-		_g_signal_handlers_disconnect_by_data (self->priv->playbin, self);
-		_g_signal_handlers_disconnect_by_data (self->priv->video_area, self);
-
 		gst_element_set_state (self->priv->playbin, GST_STATE_NULL);
 		wait_playbin_state_change_to_complete (self);
-		GstBus *bus = gst_element_get_bus (self->priv->playbin);
-		if (bus != NULL) {
+
+		GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (self->priv->playbin));
+		if (bus != NULL)
 			gst_bus_remove_signal_watch (bus);
-			g_object_unref (bus);
-		}
-		gst_object_unref (GST_OBJECT (self->priv->playbin));
+
+		_g_signal_handlers_disconnect_by_data (self->priv->playbin, self);
+		g_object_unref (G_OBJECT (self->priv->playbin));
 		self->priv->playbin = NULL;
-		self->priv->video_area = NULL;
-		self->priv->audio_area = NULL;
+
+		if (bus != NULL) {
+			_g_signal_handlers_disconnect_by_data (bus, self);
+			g_object_unref (G_OBJECT (bus));
+		}
+	}
+
+	if (self->priv->video_area != NULL) {
+		_g_signal_handlers_disconnect_by_data (self->priv->video_area, self);
+		g_clear_object (&self->priv->video_area);
+	}
+
+	if (self->priv->audio_area != NULL) {
+		_g_signal_handlers_disconnect_by_data (self->priv->audio_area, self);
+		g_clear_object (&self->priv->audio_area);
 	}
 
 	gtk_widget_destroy (self->priv->screenshot_button);
@@ -1690,6 +1705,9 @@ gth_media_viewer_page_init (GthMediaViewerPage *self)
 {
 	self->priv = gth_media_viewer_page_get_instance_private (self);
 	self->priv->settings = g_settings_new (GTHUMB_GSTREAMER_TOOLS_SCHEMA);
+	self->priv->playbin = NULL;
+	self->priv->video_area = NULL;
+	self->priv->audio_area = NULL;
 	self->priv->update_progress_id = 0;
 	self->priv->update_volume_id = 0;
 	self->priv->has_video = FALSE;
