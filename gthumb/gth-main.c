@@ -134,6 +134,7 @@ gth_main_finalize (GObject *object)
 
 	g_hash_table_unref (gth_main->priv->metadata_info_hash);
 	g_ptr_array_unref (gth_main->priv->metadata_category);
+	g_ptr_array_foreach (gth_main->priv->metadata_info, (GFunc) gth_metadata_info_free, NULL);
 	g_ptr_array_unref (gth_main->priv->metadata_info);
 	g_list_foreach (gth_main->priv->metadata_provider, (GFunc) g_object_unref, NULL);
 	g_list_free (gth_main->priv->metadata_provider);
@@ -461,10 +462,13 @@ gth_main_register_metadata_info_v (GthMetadataInfo metadata_info[])
 
 	for (i = 0; metadata_info[i].id != NULL; i++)
 		if ((metadata_info[i].display_name == NULL) || (strstr (metadata_info[i].display_name, "0x") == NULL)) {
+			GthMetadataInfo *info;
+
 			if (metadata_info[i].sort_order <= 0)
 				metadata_info[i].sort_order = 500;
-			g_ptr_array_add (Main->priv->metadata_info, &metadata_info[i]);
-			g_hash_table_insert (Main->priv->metadata_info_hash, (gpointer) (&metadata_info[i])->id, &metadata_info[i]);
+			info = gth_metadata_info_dup (&metadata_info[i]);
+			g_ptr_array_add (Main->priv->metadata_info, info);
+			g_hash_table_insert (Main->priv->metadata_info_hash, (gpointer) info->id, info);
 		}
 
 	g_mutex_unlock (&metadata_info_mutex);
