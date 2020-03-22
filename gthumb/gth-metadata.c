@@ -310,6 +310,18 @@ gth_metadata_info_dup (GthMetadataInfo *info)
 
 
 void
+gth_metadata_info_free (GthMetadataInfo *info)
+{
+	g_free (info->id);
+	g_free (info->type);
+	g_free (info->display_name);
+	g_free (info->category);
+
+	g_free (info);
+}
+
+
+void
 set_attribute_from_string (GFileInfo  *info,
 			   const char *key,
 			   const char *raw,
