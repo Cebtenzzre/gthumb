@@ -815,18 +815,19 @@ _g_utf8_translate (const char *str,
 	if (str == NULL)
 		return NULL;
 
-	translation = g_hash_table_new_full (_g_unichar_hash, _g_unichar_equal, NULL, g_free);
+	translation = g_hash_table_new_full (_g_unichar_hash, _g_unichar_equal, g_free, g_free);
 	va_start (args, str);
 	while ((arg = va_arg (args, const char *)) != NULL) {
-		gunichar    from_ch;
+		gunichar   *from_ch;
 		const char *to_str;
 
-		from_ch = g_utf8_get_char (arg);
+		from_ch = g_new (gunichar, 1);
+		*from_ch = g_utf8_get_char (arg);
 		to_str = va_arg (args, const char *);
 		if (to_str == NULL)
 			break;
 
-		g_hash_table_insert (translation, &from_ch, g_strdup (to_str));
+		g_hash_table_insert (translation, from_ch, g_strdup (to_str));
 	}
 	va_end (args);
 
