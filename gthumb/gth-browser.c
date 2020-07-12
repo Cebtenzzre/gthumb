@@ -5769,6 +5769,8 @@ gth_browser_reload (GthBrowser *browser)
 {
 	if (gth_window_get_current_page (GTH_WINDOW (browser)) != GTH_BROWSER_PAGE_BROWSER)
 		return;
+	if (browser->priv->location == NULL)
+		return;
 	gth_browser_go_to (browser, browser->priv->location->file, NULL);
 }
 
