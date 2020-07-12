@@ -1365,7 +1365,7 @@ gth_media_viewer_page_real_deactivate (GthViewerPage *base)
 		self->priv->playbin = NULL;
 
 		_g_signal_handlers_disconnect_by_data (bus, self);
-		g_assert_finalize_object (bus);
+		gst_object_unref (GST_OBJECT (bus));
 	}
 
 	if (self->priv->video_area != NULL) {
@@ -1634,6 +1634,7 @@ gth_media_viewer_page_finalize (GObject *obj)
 		gth_screensaver_uninhibit (self->priv->screensaver);
 		g_object_unref (self->priv->screensaver);
 	}
+	_g_signal_handlers_disconnect_by_data (G_OBJECT (self->priv->settings), self);
 	_g_object_unref (self->priv->settings);
 
 	G_OBJECT_CLASS (gth_media_viewer_page_parent_class)->finalize (obj);
