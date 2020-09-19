@@ -777,7 +777,7 @@ _gth_image_preloader_start_request (GthImagePreloader *self,
 				    LoadRequest       *request)
 {
 	if (request == NULL)
-		return
+		return;
 
 	load_request_unref (self->priv->current_request);
 	self->priv->current_request = load_request_ref (request);
