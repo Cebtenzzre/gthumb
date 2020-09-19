@@ -446,6 +446,7 @@ typedef struct {
 static void
 update_quality_data_free (UpdateQualityData *data)
 {
+	_g_object_unref (data->self);
 	_g_object_unref (data->file_data);
 	g_free (data);
 }
@@ -455,11 +456,10 @@ static gboolean
 update_quality_cb (gpointer user_data)
 {
 	UpdateQualityData  *data = user_data;
-	GthImageViewerPage *self = data->self;
+	GthImageViewerPage *self = _g_object_ref (data->self);
 	gboolean            file_changed;
 
 	if (! _gth_image_viewer_page_load_with_preloader_finish (self)) {
-		update_quality_data_free (data);
 		return FALSE;
 	}
 
@@ -469,7 +469,6 @@ update_quality_cb (gpointer user_data)
 	}
 
 	file_changed = ! _g_file_equal (data->file_data->file, self->priv->file_data->file);
-	update_quality_data_free (data);
 
 	if (file_changed)
 		return FALSE;
@@ -518,13 +517,14 @@ update_image_quality_if_required (GthImageViewerPage *self)
 	UpdateQualityData *data;
 
 	data = g_new0 (UpdateQualityData, 1);
-	data->self = self;
+	data->self = _g_object_ref (self);
 	data->file_data = _g_object_ref (self->priv->file_data);
 
-	_g_object_ref (self);
-	self->priv->update_quality_id = g_timeout_add (UPDATE_QUALITY_DELAY,
-						       update_quality_cb,
-						       data);
+	self->priv->update_quality_id = g_timeout_add_full (G_PRIORITY_DEFAULT,
+							    UPDATE_QUALITY_DELAY,
+							    update_quality_cb,
+							    data,
+							    update_quality_data_free);
 #endif
 }
 

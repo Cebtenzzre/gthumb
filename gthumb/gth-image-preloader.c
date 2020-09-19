@@ -77,6 +77,7 @@ struct _GthImagePreloaderPrivate {
 	GList			*requests;		/* List of queued LoadRequest */
 	LoadRequest		*current_request;
 	LoadRequest             *last_request;
+	LoadRequest             *load_next_request;
 	GthImageLoader		*loader;
 	GQueue			*cache;
 	guint                    load_next_id;
@@ -247,6 +248,10 @@ load_request_completed_with_error (LoadRequest *request,
 
 
 static void
+cancel_load_current_file (LoadRequest *request);
+
+
+static void
 gth_image_preloader_finalize (GObject *object)
 {
 	GthImagePreloader *self;
@@ -257,8 +262,12 @@ gth_image_preloader_finalize (GObject *object)
 
 	self = GTH_IMAGE_PRELOADER (object);
 
-	if (self->priv->load_next_id != 0)
+	if (self->priv->load_next_id != 0) {
+		if (self->priv->load_next_request != NULL) {
+			cancel_load_current_file (self->priv->load_next_request);
+		}
 		g_source_remove (self->priv->load_next_id);
+	}
 	load_request_unref (self->priv->last_request);
 	load_request_unref (self->priv->current_request);
 
@@ -395,11 +404,13 @@ load_current_file (gpointer user_data)
 
 	g_return_val_if_fail (request->current_file != NULL, FALSE);
 
+	self->priv->load_next_request = NULL;
+
 	if (self->priv->last_request != request) {
 		_gth_image_preloader_cancel_request (self, request);
 	}
 	else {
-		if (self->priv->load_next_id > 0) {
+		if (self->priv->load_next_id != 0) {
 			g_source_remove (self->priv->load_next_id);
 			self->priv->load_next_id = 0;
 		}
@@ -407,6 +418,14 @@ load_current_file (gpointer user_data)
 	}
 
 	return FALSE;
+}
+
+
+static void
+cancel_load_current_file (LoadRequest *request)
+{
+	g_return_if_fail (request->current_file != NULL);
+	_gth_image_preloader_cancel_request (request->preloader, request);
 }
 
 
@@ -470,8 +489,13 @@ _gth_image_preloader_request_completed (GthImagePreloader *self,
 	}
 	while (cache_data != NULL);
 
-	if (self->priv->load_next_id > 0)
+	if (self->priv->load_next_id != 0) {
+		if (self->priv->load_next_request != NULL) {
+			cancel_load_current_file (self->priv->load_next_request);
+		}
 		g_source_remove (self->priv->load_next_id);
+	}
+	self->priv->load_next_request = request;
 	self->priv->load_next_id = g_timeout_add (LOAD_NEXT_FILE_DELAY,
 						  load_current_file,
 						  request);
@@ -812,7 +836,11 @@ _gth_image_preloader_cancel_current_request (GthImagePreloader *self)
 	if (self->priv->current_request == NULL)
 		return;
 
-	if (self->priv->load_next_id > 0) {
+	if (self->priv->load_next_id != 0) {
+		if (self->priv->load_next_request != NULL
+		    && self->priv->load_next_request != self->priv->current_request) {
+			cancel_load_current_file (self->priv->load_next_request);
+		}
 		g_source_remove (self->priv->load_next_id);
 		self->priv->load_next_id = 0;
 	}
