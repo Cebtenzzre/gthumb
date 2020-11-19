@@ -33,6 +33,19 @@ gth_file_data_cmp_filename (GthFileData *a,
 {
 	const char *key_a, *key_b;
 
+	key_a = gth_file_data_get_filename_sort_key (a);
+	key_b = gth_file_data_get_filename_sort_key (b);
+
+	return strcmp (key_a, key_b);
+}
+
+
+static int
+gth_file_data_cmp_filename_strcoll (GthFileData *a,
+				    GthFileData *b)
+{
+	const char *key_a, *key_b;
+
 	if (a->info == NULL)
 		key_a = NULL;
 	else
@@ -170,6 +183,7 @@ gth_general_data_cmp_aspect_ratio (GthFileData *a,
 
 GthFileDataSort default_sort_types[] = {
 	{ "file::name", N_("file name"), "standard::display-name", gth_file_data_cmp_filename },
+	{ "file::name-strcoll", N_("file name (strcoll)"), "standard::display-name", gth_file_data_cmp_filename_strcoll },
 	{ "file::path", N_("file path"), "standard::display-name", gth_file_data_cmp_uri },
 	{ "file::size", N_("file size"), "standard::size", gth_file_data_cmp_filesize },
 	{ "file::mtime", N_("file modified date"), "time::modified,time::modified-usec", gth_file_data_cmp_modified_time },
