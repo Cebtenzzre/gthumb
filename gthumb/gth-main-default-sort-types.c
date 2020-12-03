@@ -124,6 +124,24 @@ gth_file_data_cmp_modified_time (GthFileData *a,
 
 
 static int
+gth_file_data_cmp_created_time (GthFileData *a,
+			        GthFileData *b)
+{
+	GTimeVal *ta, *tb;
+	int       result;
+
+	ta = gth_file_data_get_creation_time (a);
+	tb = gth_file_data_get_creation_time (b);
+
+	result = _g_time_val_cmp (ta, tb);
+	if (result == 0)
+		result = gth_file_data_cmp_filename (a, b);
+
+	return result;
+}
+
+
+static int
 gth_general_data_cmp_dimensions (GthFileData *a,
 				 GthFileData *b)
 {
@@ -187,6 +205,7 @@ GthFileDataSort default_sort_types[] = {
 	{ "file::path", N_("file path"), "standard::display-name", gth_file_data_cmp_uri },
 	{ "file::size", N_("file size"), "standard::size", gth_file_data_cmp_filesize },
 	{ "file::mtime", N_("file modified date"), "time::modified,time::modified-usec", gth_file_data_cmp_modified_time },
+	{ "file::btime", N_("file created date"), "time::created,time::created-usec", gth_file_data_cmp_created_time },
 	{ "general::unsorted", N_("no sorting"), "", NULL },
 	{ "general::dimensions", N_("dimensions"), "frame::width,frame::height", gth_general_data_cmp_dimensions },
 	{ "frame::aspect-ratio", N_("aspect ratio"), "frame::width,frame::height", gth_general_data_cmp_aspect_ratio },
