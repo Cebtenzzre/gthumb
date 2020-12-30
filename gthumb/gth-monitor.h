@@ -113,7 +113,8 @@ void          gth_monitor_emblems_changed            (GthMonitor      *monitor,
 void          gth_monitor_entry_points_changed       (GthMonitor      *monitor);
 void          gth_monitor_order_changed              (GthMonitor      *monitor,
 						      GFile           *file,
-						      int             *new_order);
+						      int             *new_order,
+						      guint            new_order_len);
 
 G_END_DECLS
 

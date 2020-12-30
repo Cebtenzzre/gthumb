@@ -193,11 +193,12 @@ gth_monitor_class_init (GthMonitorClass *class)
 			      G_SIGNAL_RUN_LAST,
 			      G_STRUCT_OFFSET (GthMonitorClass, order_changed),
 			      NULL, NULL,
-			      gth_marshal_VOID__OBJECT_POINTER,
+			      gth_marshal_VOID__OBJECT_POINTER_UINT,
 			      G_TYPE_NONE,
-			      2,
+			      3,
 			      G_TYPE_OBJECT,
-			      G_TYPE_POINTER);
+			      G_TYPE_POINTER,
+			      G_TYPE_UINT);
 }
 
 
@@ -472,7 +473,8 @@ gth_monitor_entry_points_changed (GthMonitor *self)
 void
 gth_monitor_order_changed (GthMonitor *self,
 			   GFile      *file,
-			   int        *new_order)
+			   int        *new_order,
+			   guint       new_order_len)
 {
 	g_return_if_fail (GTH_IS_MONITOR (self));
 
@@ -483,5 +485,6 @@ gth_monitor_order_changed (GthMonitor *self,
 		       monitor_signals[ORDER_CHANGED],
 		       0,
 		       file,
-		       new_order);
+		       new_order,
+		       new_order_len);
 }

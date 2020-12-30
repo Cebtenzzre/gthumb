@@ -1170,6 +1170,7 @@ typedef struct {
 	ReadyCallback  callback;
 	gpointer       data;
 	int           *new_order;
+	guint          new_order_len;
 } ReorderData;
 
 
@@ -1196,7 +1197,8 @@ reorder_buffer_ready_cb (void     **buffer,
 
 	gth_monitor_order_changed (gth_main_get_default_monitor (),
 				   reorder_data->destination->file,
-				   reorder_data->new_order);
+				   reorder_data->new_order,
+				   reorder_data->new_order_len);
 	reorder_data->callback (G_OBJECT (reorder_data->file_source), error, reorder_data->data);
 
 	reorder_data_free (reorder_data);
@@ -1249,6 +1251,7 @@ reorder_catalog_ready_cb (GObject  *object,
 							reorder_data->visible_files,
 							reorder_data->files_to_move,
 							reorder_data->dest_pos);
+	reorder_data->new_order_len =  g_list_length (reorder_data->visible_files);
 	gth_catalog_set_order (catalog, "general::unsorted", FALSE);
 
 	buffer = gth_catalog_to_data (catalog, &size);
