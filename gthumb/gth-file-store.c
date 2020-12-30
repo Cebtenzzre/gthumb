@@ -1715,9 +1715,12 @@ gth_file_store_clear (GthFileStore *file_store)
 
 void
 gth_file_store_reorder (GthFileStore *file_store,
-			int          *new_order)
+			int          *new_order,
+			guint         new_order_len)
 {
 	int i;
+
+	g_return_if_fail (new_order_len == file_store->priv->num_rows);
 
 	_gth_file_store_set_sort_func (file_store, NULL, FALSE);
 

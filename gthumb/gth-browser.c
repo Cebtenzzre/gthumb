@@ -3146,11 +3146,12 @@ filterbar_personalize_cb (GthFilterbar *filterbar,
 
 static void
 _gth_browser_change_file_list_order (GthBrowser *browser,
-				     int        *new_order)
+				     int        *new_order,
+				     guint       new_order_len)
 {
 	g_file_info_set_attribute_string (browser->priv->location->info, "sort::type", "general::unsorted");
 	g_file_info_set_attribute_boolean (browser->priv->location->info, "sort::inverse", FALSE);
-	gth_file_store_reorder (GTH_FILE_STORE (gth_file_view_get_model (GTH_FILE_VIEW (gth_browser_get_file_list_view (browser)))), new_order);
+	gth_file_store_reorder (GTH_FILE_STORE (gth_file_view_get_model (GTH_FILE_VIEW (gth_browser_get_file_list_view (browser)))), new_order, new_order_len);
 	_gth_browser_update_current_file_position (browser);
 	gth_browser_update_title (browser);
 }
@@ -3694,10 +3695,11 @@ static void
 order_changed_cb (GthMonitor *monitor,
 		  GFile      *file,
 		  int        *new_order,
+		  guint       new_order_len,
 		  GthBrowser *browser)
 {
 	if ((browser->priv->location != NULL) && g_file_equal (file, browser->priv->location->file))
-		_gth_browser_change_file_list_order (browser, new_order);
+		_gth_browser_change_file_list_order (browser, new_order, new_order_len);
 }
 
 

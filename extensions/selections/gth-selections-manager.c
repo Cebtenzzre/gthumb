@@ -501,6 +501,7 @@ gth_selections_manager_reorder (GFile *folder,
 	int                   n_selection;
 	int                  *new_order;
 	GList                *new_file_list;
+	guint                 new_order_len;
 
 	n_selection = _g_file_get_n_selection (folder);
 	if (n_selection <= 0)
@@ -517,6 +518,7 @@ gth_selections_manager_reorder (GFile *folder,
 			 dest_pos,
 			 &new_order,
 			 &new_file_list);
+	new_order_len = g_list_length (visible_files);
 	_g_object_list_unref (self->priv->files[n_selection - 1]);
 	self->priv->files[n_selection - 1] = new_file_list;
 	_gth_selections_manager_files_changed_for_selection (self, n_selection);
@@ -526,7 +528,8 @@ gth_selections_manager_reorder (GFile *folder,
 
 	gth_monitor_order_changed (gth_main_get_default_monitor (),
 				   folder,
-				   new_order);
+				   new_order,
+				   new_order_len);
 
 	g_free (new_order);
 }

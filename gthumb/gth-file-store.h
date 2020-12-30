@@ -128,7 +128,8 @@ void            gth_file_store_queue_remove      (GthFileStore         *file_sto
 void            gth_file_store_exec_remove       (GthFileStore         *file_store);
 void            gth_file_store_clear             (GthFileStore         *file_store);
 void            gth_file_store_reorder           (GthFileStore         *file_store,
-						  int                  *new_order);
+						  int                  *new_order,
+						  guint                 new_order_len);
 gboolean        gth_file_store_iter_is_valid     (GthFileStore         *file_store,
 						  GtkTreeIter          *iter);
 
