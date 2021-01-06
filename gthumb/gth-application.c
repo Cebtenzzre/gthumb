@@ -319,9 +319,13 @@ gth_application_command_line (GApplication            *application,
 		file_type = _g_file_query_standard_type (location);
 		if (file_type == G_FILE_TYPE_REGULAR)
 			files = g_list_prepend (files, location);
-		else
+		else if (file_type == G_FILE_TYPE_DIRECTORY)
 			dirs = g_list_prepend (dirs, location);
 	}
+
+	if (files == NULL && dirs == NULL) /* None of the specified locations were valid. */
+		return EXIT_FAILURE;
+
 	files = g_list_reverse (files);
 	dirs = g_list_reverse (dirs);
 
