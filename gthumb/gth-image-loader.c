@@ -24,6 +24,7 @@
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gtk/gtk.h>
 #include "glib-utils.h"
+#include "gth-error.h"
 #include "gth-file-data.h"
 #include "gth-image-loader.h"
 #include "gth-main.h"
@@ -197,9 +198,15 @@ loader_result_free (LoaderResult *result)
 }
 
 
+extern volatile gint thread_count;
+extern volatile gboolean threads_may_start;
+extern GMutex thread_count_mutex;
+extern GCond thread_count_cond;
+
+
 static void
 load_image_thread (GTask        *task,
-                   gpointer      source_object,
+		   gpointer      source_object,
 		   gpointer      task_data,
 		   GCancellable *cancellable)
 {
@@ -298,7 +305,33 @@ load_image_thread (GTask        *task,
 	result->original_width = original_width;
 	result->original_height = original_height;
 	result->loaded_original = loaded_original;
+
 	g_task_return_pointer (task, result, (GDestroyNotify) loader_result_free);
+}
+
+static void
+load_image_thread_wrapper (GTask        *task,
+			   gpointer      source_object,
+			   gpointer      task_data,
+			   GCancellable *cancellable)
+{
+	GError *error = NULL;
+
+	if (!threads_may_start) {
+		error = g_error_new_literal(GTH_ERROR, GTH_ERROR_GENERIC, "gThumb is shutting down");
+		g_task_return_error (task, error);
+		return;
+	}
+	g_mutex_lock (&thread_count_mutex);
+	++thread_count;
+	g_mutex_unlock (&thread_count_mutex);
+
+	load_image_thread (task, source_object, task_data, cancellable);
+
+	g_mutex_lock (&thread_count_mutex);
+	--thread_count;
+	g_cond_signal (&thread_count_cond);
+	g_mutex_unlock (&thread_count_mutex);
 }
 
 
@@ -317,7 +350,7 @@ gth_image_loader_load (GthImageLoader      *loader,
 	g_task_set_task_data (task,
 			      loader_options_new (file_data, requested_size),
 			      (GDestroyNotify) loader_options_free);
-	g_task_run_in_thread (task, load_image_thread);
+	g_task_run_in_thread (task, load_image_thread_wrapper);
 
 	g_object_unref (task);
 }

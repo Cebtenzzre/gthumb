@@ -83,9 +83,21 @@ GType gth_application_get_type	(void);
 G_DEFINE_TYPE (GthApplication, gth_application, GTK_TYPE_APPLICATION);
 
 
+gint thread_count;
+gboolean threads_may_start = TRUE;
+GMutex thread_count_mutex;
+GCond thread_count_cond;
+
+
 static void
 gth_application_finalize (GObject *object)
 {
+	g_mutex_lock (&thread_count_mutex);
+	threads_may_start = FALSE;
+	while (thread_count > 0)
+		g_cond_wait (&thread_count_cond, &thread_count_mutex);
+	g_mutex_unlock (&thread_count_mutex);
+
 	gth_main_release ();
 	gth_pref_release ();
 
