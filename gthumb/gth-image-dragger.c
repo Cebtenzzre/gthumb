@@ -387,6 +387,8 @@ gth_image_dragger_button_release (GthImageViewerTool *self,
 
 	dragger = (GthImageDragger *) self;
 	viewer = dragger->priv->viewer;
+	if (viewer == NULL)
+		return FALSE;
 
 	if (dragger->priv->scrollable && viewer->dragging)
 		gdk_seat_ungrab (gdk_device_get_seat (event->device));
