@@ -390,19 +390,17 @@ gth_application_local_command_line (GApplication   *application,
 	}
 	g_strfreev (local_argv);
 
-	/* substitute the dot with the local current folder */
+	/* interpret arguments relative to the local current folder */
 
 	local_argv = *arguments;
 	if ((local_argv != NULL) && (local_argv[0] != NULL)) {
 		int i;
 
 		for (i = 1; local_argv[i] != NULL; i++) {
-			if (strstr (local_argv[i], ".") != NULL) {
-				GFile *location = g_file_new_for_commandline_arg (local_argv[i]);
-				g_free (local_argv[i]);
-				local_argv[i] = g_file_get_uri (location);
-				g_object_unref (location);
-			}
+			GFile *location = g_file_new_for_commandline_arg (local_argv[i]);
+			g_free (local_argv[i]);
+			local_argv[i] = g_file_get_uri (location);
+			g_object_unref (location);
 		}
 	}
 
