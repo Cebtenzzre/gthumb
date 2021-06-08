@@ -1309,10 +1309,12 @@ gth_file_source_catalogs_reorder (GthFileSource *file_source,
 
 typedef struct {
 	GtkWindow  *parent;
+	GList      *file_data_list;
 	GList      *file_list;
 	GFile      *gio_file;
 	GthCatalog *catalog;
 	gboolean    notify;
+	gboolean    permanently;
 } RemoveFromCatalogData;
 
 
@@ -1376,6 +1378,15 @@ catalog_buffer_ready_cb (void     **buffer,
 		return;
 	}
 
+	if (data->parent != NULL && g_strcmp0 (gth_catalog_get_name (data->catalog), _("Command Line")) == 0) {
+		if (data->permanently)
+			gth_file_mananger_delete_files (data->parent, data->file_data_list);
+		else
+			gth_file_mananger_trash_files (data->parent, data->file_data_list);
+		remove_from_catalog_end (error, data);
+		return;
+	}
+
 	for (scan = data->file_list; scan; scan = scan->next) {
 		GFile *file = scan->data;
 		gth_catalog_remove_file (data->catalog, file);
@@ -1402,15 +1413,23 @@ void
 gth_catalog_manager_remove_files (GtkWindow   *parent,
 				  GthFileData *location,
 				  GList       *file_list,
-				  gboolean     notify)
+				  gboolean     notify,
+				  gboolean     permanently)
 {
 	RemoveFromCatalogData *data;
 
 	data = g_new0 (RemoveFromCatalogData, 1);
 	data->parent = parent;
-	data->file_list = _g_file_list_dup (file_list);
+	if (parent == NULL) {
+		data->file_data_list = NULL;  /* Not used */
+		data->file_list = _g_file_list_dup (file_list);
+	} else {
+		data->file_data_list = gth_file_data_list_dup (file_list);
+		data->file_list = gth_file_data_list_to_file_list (file_list);
+	}
 	data->gio_file = gth_main_get_gio_file (location->file);
 	data->notify = notify;
+	data->permanently = permanently;
 	data->catalog = NULL;
 
 	_g_file_load_async (data->gio_file,
@@ -1424,16 +1443,12 @@ gth_catalog_manager_remove_files (GtkWindow   *parent,
 static void
 gth_file_source_catalogs_remove (GthFileSource *file_source,
 				 GthFileData   *location,
-	       	       	         GList         *file_data_list /* GthFileData list */,
-	       	       	         gboolean       permanently,
-	       	       	         GtkWindow     *parent)
+				 GList         *file_list /* GthFileData list */,
+				 gboolean       permanently,
+				 GtkWindow     *parent)
 {
-	GList *file_list;
 
-	file_list = gth_file_data_list_to_file_list (file_data_list);
-	gth_catalog_manager_remove_files (parent, location, file_list, TRUE);
-
-	_g_object_list_unref (file_list);
+	gth_catalog_manager_remove_files (parent, location, file_list, TRUE, permanently);
 }
 
 
@@ -1442,7 +1457,7 @@ gth_file_source_catalogs_deleted_from_disk (GthFileSource *file_source,
 					    GthFileData   *location,
 					    GList         *file_list)
 {
-	gth_catalog_manager_remove_files (NULL, location, file_list, FALSE);
+	gth_catalog_manager_remove_files (NULL, location, file_list, FALSE, FALSE);
 }
 
 
