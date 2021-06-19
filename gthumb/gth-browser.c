@@ -966,6 +966,9 @@ typedef struct {
 	GFile         *entry_point;
 	GthFileSource *file_source;
 	GCancellable  *cancellable;
+	GCancellable  *qla_cancellable;
+	GMutex         qla_mutex;
+	gint           querying_list_attributes;
 } LoadData;
 
 
@@ -994,6 +997,8 @@ load_data_new (GthBrowser *browser,
 	load_data->action = action;
 	load_data->automatic = automatic;
 	load_data->cancellable = g_cancellable_new ();
+	load_data->qla_cancellable = g_cancellable_new ();
+	g_mutex_init (&load_data->qla_mutex);
 
 	browser->priv->load_data_queue = g_list_prepend (browser->priv->load_data_queue, load_data);
 	if (gth_action_changes_folder (load_data->action))
@@ -1037,6 +1042,7 @@ load_data_free (LoadData *data)
 	_g_object_list_unref (data->list);
 	_g_object_unref (data->entry_point);
 	g_object_unref (data->cancellable);
+	g_mutex_clear (&data->qla_mutex);
 	g_free (data);
 }
 
@@ -1310,6 +1316,8 @@ _gth_browser_set_sort_order (GthBrowser      *browser,
 			     gboolean         save,
 			     gboolean         update_view)
 {
+	GthFileDataSort *prev_sort_type = browser->priv->current_sort_type;
+
 	g_return_if_fail (sort_type != NULL);
 
 	browser->priv->current_sort_type = sort_type;
@@ -1318,6 +1326,18 @@ _gth_browser_set_sort_order (GthBrowser      *browser,
 	gth_file_list_set_sort_func (GTH_FILE_LIST (browser->priv->file_list),
 				     sort_type->cmp_func,
 				     inverse);
+
+	if (prev_sort_type == NULL || strcmp(sort_type->required_attributes, prev_sort_type->required_attributes) != 0) {
+		if (browser->priv->last_folder_to_open != NULL) {
+			LoadData *last_load_data = (LoadData *) browser->priv->last_folder_to_open;
+			g_mutex_lock (&last_load_data->qla_mutex);
+			if (g_atomic_int_get (&last_load_data->querying_list_attributes)) {
+				/* Request a restart */
+				g_cancellable_cancel (last_load_data->qla_cancellable);
+			}
+			g_mutex_unlock (&last_load_data->qla_mutex);
+		}
+	}
 
 	if (! browser->priv->constructed || (browser->priv->location == NULL))
 		return;
@@ -1625,6 +1645,13 @@ load_data_continue (LoadData *load_data,
 }
 
 
+typedef struct {
+	GList   *files;
+	char   *attributes;
+	char  **attributes_v;
+} QueryMetadataData;
+
+
 static void
 metadata_ready_cb (GObject      *source_object,
 		   GAsyncResult *result,
@@ -1635,6 +1662,25 @@ metadata_ready_cb (GObject      *source_object,
 	GError   *error = NULL;
 
 	files = _g_query_metadata_finish (result, &error);
+
+	g_mutex_lock (&load_data->qla_mutex);
+	if (g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED) && !g_cancellable_is_cancelled (load_data->cancellable)) {
+		/* Restart requested */
+		QueryMetadataData *qmd;
+		g_mutex_unlock (&load_data->qla_mutex);
+		g_assert (g_cancellable_is_cancelled (load_data->qla_cancellable));
+		g_cancellable_reset (load_data->qla_cancellable);
+		qmd = g_task_get_task_data (G_TASK (result));
+		_g_query_metadata_async (qmd->files,
+					 _gth_browser_get_list_attributes (load_data->browser, TRUE),
+					 load_data->qla_cancellable,
+					 metadata_ready_cb,
+					 load_data);
+		return;
+	}
+	g_atomic_int_dec_and_test (&load_data->querying_list_attributes);
+	g_mutex_unlock (&load_data->qla_mutex);
+
 	if (error != NULL) {
 		load_data_error (load_data, error);
 		return;
@@ -1655,9 +1701,10 @@ load_data_ready (LoadData *load_data,
 	else if (gth_action_changes_folder (load_data->action)
 		 && _g_file_equal ((GFile *) load_data->current->data, load_data->requested_folder->file))
 	{
+		g_atomic_int_inc (&load_data->querying_list_attributes);
 		_g_query_metadata_async (files,
 					 _gth_browser_get_list_attributes (load_data->browser, TRUE),
-					 load_data->cancellable,
+					 load_data->qla_cancellable,
 					 metadata_ready_cb,
 					 load_data);
 	}
@@ -1838,7 +1885,10 @@ _gth_browser_load (GthBrowser *browser,
 
 	if (gth_action_changes_folder (action) && (browser->priv->last_folder_to_open != NULL)) {
 		LoadData *last_load_data = (LoadData *) browser->priv->last_folder_to_open;
+		g_mutex_lock (&last_load_data->qla_mutex);
 		g_cancellable_cancel (last_load_data->cancellable);
+		g_cancellable_cancel (last_load_data->qla_cancellable);
+		g_mutex_unlock (&last_load_data->qla_mutex);
 	}
 
 	entry_point = gth_main_get_nearest_entry_point (location);
@@ -6991,7 +7041,10 @@ _gth_browser_cancel (GthBrowser *browser,
 
 		if (data->file_source != NULL)
 			gth_file_source_cancel (data->file_source);
+		g_mutex_lock (&data->qla_mutex);
 		g_cancellable_cancel (data->cancellable);
+		g_cancellable_cancel (data->qla_cancellable);
+		g_mutex_unlock (&data->qla_mutex);
 	}
 
 	for (scan = browser->priv->load_file_data_queue; scan; scan = scan->next) {
