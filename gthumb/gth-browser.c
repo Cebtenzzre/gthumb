@@ -3339,7 +3339,7 @@ folder_changed_cb (GthMonitor      *monitor,
 	if ((event == GTH_MONITOR_EVENT_CREATED)
 		&& _g_file_list_only_contains (list, browser->priv->location->file))
 	{
-		gth_file_list_set_files (GTH_FILE_LIST (browser->priv->file_list), NULL);
+		/* Our current location was replaced... ignore that for now. */
 	}
 	else if (update_folder_tree || update_file_list) {
 		MonitorEventData *monitor_data;
