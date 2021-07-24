@@ -63,7 +63,7 @@ original_image_task_completed_cb (GthTask	*task,
 	cairo_surface_t    *image;
 
 	if (error != NULL) {
-		gth_task_completed (task, error);
+		gth_task_completed (GTH_TASK (self), error);
 		return;
 	}
 
