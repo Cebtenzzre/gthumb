@@ -56,6 +56,9 @@
 #include <glib.h>
 #include <stdio.h>
 #include <png.h>
+#ifdef PNG_SETJMP_SUPPORTED
+#include <setjmp.h>
+#endif
 #define GDK_PIXBUF_ENABLE_BACKEND
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <glib/gstdio.h>
@@ -1621,6 +1624,15 @@ read_png_options (const char *thumbnail_filename)
 		png_destroy_read_struct (&png_ptr, &info_ptr, NULL);
 		return options;
 	}
+
+#ifdef PNG_SETJMP_SUPPORTED
+	if (setjmp (png_jmpbuf (png_ptr))) {
+		g_warning ("Error reading thumbnail \"%s\"\n", thumbnail_filename);
+		png_destroy_read_struct (&png_ptr, &info_ptr, NULL);
+		fclose (f);
+		return options;
+	}
+#endif
 
 	png_init_io (png_ptr, f);
 	png_read_info (png_ptr, info_ptr);
