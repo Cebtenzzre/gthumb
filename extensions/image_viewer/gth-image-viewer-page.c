@@ -459,13 +459,13 @@ update_quality_cb (gpointer user_data)
 	GthImageViewerPage *self = _g_object_ref (data->self);
 	gboolean            file_changed;
 
-	if (! _gth_image_viewer_page_load_with_preloader_finish (self)) {
-		return FALSE;
-	}
-
 	if (self->priv->update_quality_id != 0) {
 		g_source_remove (self->priv->update_quality_id);
 		self->priv->update_quality_id = 0;
+	}
+
+	if (! _gth_image_viewer_page_load_with_preloader_finish (self)) {
+		return FALSE;
 	}
 
 	file_changed = ! _g_file_equal (data->file_data->file, self->priv->file_data->file);
