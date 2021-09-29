@@ -35,6 +35,7 @@ gth_metadata_provider_file_can_read (GthMetadataProvider  *self,
 				     char                **attribute_v)
 {
 	return _g_file_attributes_matches_any_v ("gth::file::display-size,"
+						 "gth::file::display-btime,"
 						 "gth::file::display-mtime,"
 						 "gth::file::content-type,"
 						 "gth::file::is-modified,"
@@ -58,6 +59,11 @@ gth_metadata_provider_file_read (GthMetadataProvider *self,
 
 	value = g_format_size (g_file_info_get_size (file_data->info));
 	g_file_info_set_attribute_string (file_data->info, "gth::file::display-size", value);
+	g_free (value);
+
+	timeval_p = gth_file_data_get_creation_time (file_data);
+	value = _g_time_val_strftime (timeval_p, "%x %X");
+	g_file_info_set_attribute_string (file_data->info, "gth::file::display-btime", value);
 	g_free (value);
 
 	timeval_p = gth_file_data_get_modification_time (file_data);
