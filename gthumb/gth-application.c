@@ -328,6 +328,14 @@ gth_application_command_line (GApplication            *application,
 		GFileType  file_type;
 
 		location = g_file_new_for_commandline_arg (arg);
+		if (!strcmp (G_OBJECT_TYPE_NAME (location), "GDaemonFile") && strchr(arg, '/') == NULL) {
+			GFile *local = g_file_new_for_path (arg);
+			if (g_file_query_exists (local, NULL)) {
+				g_object_unref (location);
+				location = local;
+			} else
+				g_object_unref (local);
+		}
 		file_type = _g_file_query_standard_type (location);
 		if (file_type == G_FILE_TYPE_REGULAR)
 			files = g_list_prepend (files, location);
@@ -398,6 +406,14 @@ gth_application_local_command_line (GApplication   *application,
 
 		for (i = 1; local_argv[i] != NULL; i++) {
 			GFile *location = g_file_new_for_commandline_arg (local_argv[i]);
+			if (!strcmp (G_OBJECT_TYPE_NAME (location), "GDaemonFile") && strchr(local_argv[i], '/') == NULL) {
+				GFile *local = g_file_new_for_path (local_argv[i]);
+				if (g_file_query_exists (local, NULL)) {
+					g_object_unref (location);
+					location = local;
+				} else
+					g_object_unref (local);
+			}
 			g_free (local_argv[i]);
 			local_argv[i] = g_file_get_uri (location);
 			g_object_unref (location);
