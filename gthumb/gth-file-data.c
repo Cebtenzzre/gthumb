@@ -238,29 +238,38 @@ gth_file_data_get_mime_type_from_content (GthFileData  *self,
 					  GCancellable *cancellable)
 {
 	const char *content_type;
+	GError     *error = NULL;
 
 	if (self->info == NULL)
 		return NULL;
 
-	content_type = g_file_info_get_attribute_string (self->info, G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE);
+	content_type = g_file_info_get_attribute_string (self->info, "gth::file::data-content-type");
 	if (content_type == NULL) {
 		GInputStream *istream;
-		GError       *error = NULL;
+		GFileType     file_type;
 
 		if (self->file == NULL)
 			return NULL;
 
+		file_type = _g_file_query_standard_type (self->file);
+		if (file_type != G_FILE_TYPE_REGULAR)
+			return gth_file_data_get_mime_type (self);
+
 		istream = (GInputStream *) g_file_read (self->file, cancellable, &error);
-		if (istream == NULL) {
-			g_warning ("%s", error->message);
-			g_clear_error (&error);
-			return NULL;
+		if (istream != NULL) {
+			content_type = _g_content_type_get_from_stream (istream, self->file, cancellable, &error);
+			if (content_type != NULL)
+				g_file_info_set_attribute_string (self->info, "gth::file::data-content-type", content_type);
+
+			g_object_unref (istream);
 		}
+	}
 
-		content_type = _g_content_type_get_from_stream (istream, self->file, cancellable, &error);
-		g_file_info_set_attribute_string (self->info, G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE, content_type);
-
-		g_object_unref (istream);
+	if (content_type == NULL) {
+		g_warning ("%s", error->message);
+		g_clear_error (&error);
+		if (!g_cancellable_is_cancelled (cancellable))
+			return gth_file_data_get_mime_type (self);
 	}
 
 	return _g_str_get_static (content_type);

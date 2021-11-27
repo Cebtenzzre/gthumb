@@ -1459,9 +1459,11 @@ static gboolean
 gth_media_viewer_page_real_can_view (GthViewerPage *base,
 				     GthFileData   *file_data)
 {
+	const char *mime_type;
 	g_return_val_if_fail (file_data != NULL, FALSE);
 
-	return _g_mime_type_is_video (gth_file_data_get_mime_type (file_data)) || _g_mime_type_is_audio (gth_file_data_get_mime_type (file_data));
+	mime_type = gth_file_data_get_mime_type_from_content (file_data, NULL);
+	return _g_mime_type_is_video (mime_type) || _g_mime_type_is_audio (mime_type);
 }
 
 

@@ -816,14 +816,30 @@ static void
 load_with_system_thumbnailer (GthThumbLoader *self,
 			      LoadData       *load_data)
 {
-	char   *uri;
-	GError *error = NULL;
+	GError 	     *error = NULL;
+	GInputStream *istream;
+	const char   *mime_type = NULL;
+	char         *uri;
+
+	istream = (GInputStream *) g_file_read (load_data->file_data->file, load_data->cancellable, &error);
+
+	if (istream != NULL) {
+		mime_type = _g_content_type_get_from_stream (istream, load_data->file_data->file, load_data->cancellable, &error);
+		g_object_unref (istream);
+	}
+
+	if (mime_type == NULL) {
+		g_clear_error (&error);
+		failed_to_load_original_image (self, load_data);
+		load_data_unref (load_data);
+		return;
+	}
 
 	uri = g_file_get_uri (load_data->file_data->file);
 	if (gnome_desktop_thumbnail_factory_generate_from_script (
 		    self->priv->thumb_factory,
 		    uri,
-		    gth_file_data_get_mime_type (load_data->file_data),
+		    mime_type,
 		    &load_data->thumbnailer_pid,
 		    &load_data->thumbnailer_tmpfile,
 		    &error))
