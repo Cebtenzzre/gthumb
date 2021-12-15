@@ -63,7 +63,7 @@ struct _GthMediaViewerPagePrivate {
 	gboolean        has_video;
 	gboolean        has_audio;
 	gulong          update_progress_id;
-	gulong          update_volume_id;
+	volatile gulong update_volume_id;
 	gdouble         rate;
 	GtkWidget      *mediabar;
 	GtkWidget      *mediabar_revealer;
