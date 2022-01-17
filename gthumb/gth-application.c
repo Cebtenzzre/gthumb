@@ -23,6 +23,7 @@
 #include <glib/gi18n.h>
 #include <glib/gprintf.h>
 #include <gio/gdesktopappinfo.h>
+#include <gio/gunixinputstream.h>
 #ifdef HAVE_GSTREAMER
 #  include <gst/gst.h>
 #endif
@@ -45,6 +46,7 @@
 
 static char **  remaining_args = NULL;
 static gboolean version = FALSE;
+static gboolean Stdin = FALSE;
 
 
 static const GOptionEntry options[] = {
@@ -62,6 +64,10 @@ static const GOptionEntry options[] = {
 
 	{ "import-photos", 'i', 0, G_OPTION_ARG_NONE, &ImportPhotos,
 	  N_("Automatically import digital camera photos"),
+	  0 },
+
+	{ "stdin", 0, 0, G_OPTION_ARG_NONE, &Stdin,
+	  N_("Read arguments from stdin"),
 	  0 },
 
 	{ "version", 'v', 0, G_OPTION_ARG_NONE, &version,
@@ -374,6 +380,26 @@ gth_application_command_line (GApplication            *application,
 }
 
 
+static void
+_g_strv_removearg (char       **strv,
+		   const char  *str)
+{
+	int i, j;
+
+	for (i = 0; strv[i] != NULL; i++) {
+		if (strcmp (strv[i], "--") == 0)
+			return;
+		if (strcmp (strv[i], str) == 0)
+			break;
+	}
+
+	if (strv[i] != NULL) {
+		for (j = i; strv[j] != NULL; j++)
+			strv[j] = strv[j + 1];
+	}
+}
+
+
 static gboolean
 gth_application_local_command_line (GApplication   *application,
                                     char         ***arguments,
@@ -400,11 +426,65 @@ gth_application_local_command_line (GApplication   *application,
 
 	/* interpret arguments relative to the local current folder */
 
+	if (version) {
+		g_printf ("%s %s, Copyright © 2001-2010 Free Software Foundation, Inc.\n", PACKAGE_NAME, PACKAGE_VERSION);
+		handled_locally = TRUE;
+	}
+
+	if (Stdin && !handled_locally) {
+		GInputStream     *stdin_stream = g_unix_input_stream_new (STDIN_FILENO, FALSE);
+		GDataInputStream *dis          = g_data_input_stream_new (stdin_stream);
+		GList            *stdin_args   = NULL;
+		if (!_g_strv_contains (*arguments, "--")) {
+			/* never interpret stdin args as options */
+			stdin_args = g_list_prepend (stdin_args, g_strdup ("--"));
+		}
+
+		for (;;) {
+			char *line = g_data_input_stream_read_line_utf8 (dis, NULL, NULL, &error);
+			if (error) {
+				*exit_status = EXIT_FAILURE;
+				g_critical ("Failed to read arguments from stdin: %s", error->message);
+				g_clear_error (&error);
+				handled_locally = TRUE;
+				break;
+			}
+			if (line == NULL && stdin_args == NULL) {
+				/* Empty stdin -> don't show */
+				*exit_status = EXIT_FAILURE;
+				handled_locally = TRUE;
+				break;
+			}
+			if (line == NULL) {
+				stdin_args = g_list_reverse (stdin_args);
+				char **args = _g_string_list_to_strv (stdin_args);
+				char **newargv = _g_strv_concat (*arguments, args);
+				g_strfreev (*arguments);
+				g_strfreev (args);
+				*arguments = newargv;
+				break;
+			}
+			stdin_args = g_list_prepend (stdin_args, line);
+		}
+
+		g_object_unref (stdin_stream);
+		g_object_unref (dis);
+		_g_string_list_free (stdin_args);
+	}
+
 	local_argv = *arguments;
-	if ((local_argv != NULL) && (local_argv[0] != NULL)) {
-		int i;
+	if (local_argv != NULL && local_argv[0] != NULL && !handled_locally) {
+		int      i;
+		gboolean separator_seen = FALSE;
+
+		_g_strv_removearg (local_argv, "--stdin"); /* Local-only option */
 
 		for (i = 1; local_argv[i] != NULL; i++) {
+			if (strcmp (local_argv[i], "--") == 0)
+				separator_seen = TRUE;
+			if (!separator_seen && *local_argv[i] == '-')
+				continue; /* Skip options */
+
 			GFile *location = g_file_new_for_commandline_arg (local_argv[i]);
 			if (!strcmp (G_OBJECT_TYPE_NAME (location), "GDaemonFile") && strchr(local_argv[i], '/') == NULL) {
 				GFile *local = g_file_new_for_path (local_argv[i]);
@@ -418,11 +498,6 @@ gth_application_local_command_line (GApplication   *application,
 			local_argv[i] = g_file_get_uri (location);
 			g_object_unref (location);
 		}
-	}
-
-	if (version) {
-		g_printf ("%s %s, Copyright © 2001-2010 Free Software Foundation, Inc.\n", PACKAGE_NAME, PACKAGE_VERSION);
-		handled_locally = TRUE;
 	}
 
 	g_option_context_free (context);
