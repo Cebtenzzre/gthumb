@@ -66,6 +66,10 @@ static const GOptionEntry options[] = {
 	  N_("Automatically import digital camera photos"),
 	  0 },
 
+	{ "no-sorting", 0, 0, G_OPTION_ARG_NONE, &NoSorting,
+	  N_("Default to no sorting"),
+	  0 },
+
 	{ "stdin", 0, 0, G_OPTION_ARG_NONE, &Stdin,
 	  N_("Read arguments from stdin"),
 	  0 },

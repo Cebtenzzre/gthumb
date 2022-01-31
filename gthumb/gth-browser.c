@@ -159,6 +159,7 @@ struct _GthBrowserPrivate {
 	gboolean           current_sort_inverse;
 	GthFileDataSort   *default_sort_type;
 	gboolean           default_sort_inverse;
+	gboolean           start_no_sorting;
 	gboolean           show_hidden_files;
 	gboolean           fast_file_type;
 	gboolean           closing;
@@ -2202,7 +2203,7 @@ _gth_browser_close_final_step (gpointer user_data)
 				_g_settings_set_uri (browser->priv->browser_settings, PREF_BROWSER_STARTUP_CURRENT_FILE, "");
 		}
 
-		if (browser->priv->default_sort_type != NULL) {
+		if (browser->priv->default_sort_type != NULL && !browser->priv->start_no_sorting) {
 			g_settings_set_string (browser->priv->browser_settings, PREF_BROWSER_SORT_TYPE, browser->priv->default_sort_type->name);
 			g_settings_set_boolean (browser->priv->browser_settings, PREF_BROWSER_SORT_INVERSE, browser->priv->default_sort_inverse);
 		}
@@ -4528,6 +4529,7 @@ gth_browser_init (GthBrowser *browser)
 	browser->priv->current_sort_inverse = FALSE;
 	browser->priv->default_sort_type = NULL;
 	browser->priv->default_sort_inverse = FALSE;
+	browser->priv->start_no_sorting = FALSE;
 	browser->priv->show_hidden_files = FALSE;
 	browser->priv->fast_file_type = FALSE;
 	browser->priv->closing = FALSE;
@@ -5105,10 +5107,17 @@ gth_browser_init (GthBrowser *browser)
 	/* the file list */
 
 	browser->priv->file_list = gth_file_list_new (gth_grid_view_new (), GTH_FILE_LIST_MODE_NORMAL, TRUE);
-	sort_type = g_settings_get_string (browser->priv->browser_settings, PREF_BROWSER_SORT_TYPE);
-	gth_browser_set_sort_order (browser,
-				    gth_main_get_sort_type (sort_type),
-				    g_settings_get_boolean (browser->priv->browser_settings, PREF_BROWSER_SORT_INVERSE));
+	if (NoSorting) {
+		NoSorting = FALSE;
+		browser->priv->start_no_sorting = TRUE;
+		gth_browser_set_sort_order (browser, gth_main_get_sort_type ("general::unsorted"), FALSE);
+	} else {
+		sort_type = g_settings_get_string (browser->priv->browser_settings, PREF_BROWSER_SORT_TYPE);
+		gth_browser_set_sort_order (browser,
+					    gth_main_get_sort_type (sort_type),
+					    g_settings_get_boolean (browser->priv->browser_settings, PREF_BROWSER_SORT_INVERSE));
+		g_free (sort_type);
+	}
 	gth_file_list_set_thumb_size (GTH_FILE_LIST (browser->priv->file_list),
 				      g_settings_get_int (browser->priv->browser_settings, PREF_BROWSER_THUMBNAIL_SIZE));
 	caption = g_settings_get_string (browser->priv->browser_settings, PREF_BROWSER_THUMBNAIL_CAPTION);
@@ -5116,7 +5125,6 @@ gth_browser_init (GthBrowser *browser)
 	gth_file_view_set_activate_on_single_click (GTH_FILE_VIEW (gth_file_list_get_view (GTH_FILE_LIST (browser->priv->file_list))), g_settings_get_boolean (browser->priv->browser_settings, PREF_BROWSER_SINGLE_CLICK_ACTIVATION));
 
 	g_free (caption);
-	g_free (sort_type);
 
 	gth_file_list_set_model (GTH_FILE_LIST (browser->priv->thumbnail_list),
 				 gth_file_list_get_model (GTH_FILE_LIST (browser->priv->file_list)));

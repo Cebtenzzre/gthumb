@@ -35,6 +35,7 @@ gboolean         NewWindow = FALSE;
 gboolean         StartInFullscreen = FALSE;
 gboolean         StartSlideshow = FALSE;
 gboolean         ImportPhotos = FALSE;
+gboolean         NoSorting = FALSE;
 static gboolean  Restart = FALSE;
 
 
