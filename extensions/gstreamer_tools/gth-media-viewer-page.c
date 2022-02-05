@@ -63,7 +63,7 @@ struct _GthMediaViewerPagePrivate {
 	gboolean        has_video;
 	gboolean        has_audio;
 	gulong          update_progress_id;
-	volatile gulong update_volume_id;
+	guint           update_volume_id;
 	gdouble         rate;
 	GtkWidget      *mediabar;
 	GtkWidget      *mediabar_revealer;
@@ -539,11 +539,14 @@ update_volume_from_playbin (GthMediaViewerPage *self)
 {
 	double   volume, v;
 	gboolean mute;
+	guint    vol_id;
 
-	if (self->priv->update_volume_id != 0) {
-		g_source_remove (self->priv->update_volume_id);
-		self->priv->update_volume_id = 0;
-	}
+	do {
+		vol_id = g_atomic_int_get(&self->priv->update_volume_id);
+	} while (!g_atomic_int_compare_and_exchange (&self->priv->update_volume_id, vol_id, 0));
+
+	if (vol_id != 0)
+		g_source_remove (vol_id);
 
 	if ((self->priv->builder == NULL) || (self->priv->playbin == NULL))
 		return FALSE;
@@ -827,9 +830,14 @@ playbin_notify_volume_cb (GObject    *playbin,
 			  gpointer    user_data)
 {
 	GthMediaViewerPage *self = user_data;
+	guint               vol_id;
 
-	if (self->priv->update_volume_id == 0)
-		self->priv->update_volume_id = g_idle_add ((GSourceFunc) update_volume_from_playbin, self);
+	vol_id = g_atomic_int_get(&self->priv->update_volume_id);
+	if (vol_id == 0) {
+		vol_id = g_idle_add ((GSourceFunc) update_volume_from_playbin, self);
+		if (!g_atomic_int_compare_and_exchange (&self->priv->update_volume_id, 0, vol_id))
+			g_source_remove (vol_id);
+	}
 }
 
 
@@ -1323,6 +1331,7 @@ static void
 gth_media_viewer_page_real_deactivate (GthViewerPage *base)
 {
 	GthMediaViewerPage *self;
+	guint               vol_id;
 
 	self = (GthMediaViewerPage*) base;
 
@@ -1339,10 +1348,12 @@ gth_media_viewer_page_real_deactivate (GthViewerPage *base)
                 self->priv->update_progress_id = 0;
         }
 
-        if (self->priv->update_volume_id != 0) {
-                g_source_remove (self->priv->update_volume_id);
-                self->priv->update_volume_id = 0;
-        }
+	do {
+		vol_id = g_atomic_int_get(&self->priv->update_volume_id);
+	} while (!g_atomic_int_compare_and_exchange (&self->priv->update_volume_id, vol_id, 0));
+
+	if (vol_id != 0)
+		g_source_remove (vol_id);
 
 	if (self->priv->playbin != NULL) {
 		double    volume;
@@ -1616,6 +1627,7 @@ static void
 gth_media_viewer_page_finalize (GObject *obj)
 {
 	GthMediaViewerPage *self;
+	guint               vol_id;
 
 	self = GTH_MEDIA_VIEWER_PAGE (obj);
 
@@ -1624,10 +1636,12 @@ gth_media_viewer_page_finalize (GObject *obj)
                 self->priv->update_progress_id = 0;
         }
 
-        if (self->priv->update_volume_id != 0) {
-                g_source_remove (self->priv->update_volume_id);
-                self->priv->update_volume_id = 0;
-        }
+	do {
+		vol_id = g_atomic_int_get(&self->priv->update_volume_id);
+	} while (!g_atomic_int_compare_and_exchange (&self->priv->update_volume_id, vol_id, 0));
+
+	if (vol_id != 0)
+		g_source_remove (vol_id);
 
         _g_object_unref (self->priv->icon);
 	_g_object_unref (self->priv->file_data);
