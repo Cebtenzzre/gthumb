@@ -35,21 +35,32 @@ gth_metadata_provider_gstreamer_can_read (GthMetadataProvider  *self,
 					  const char           *mime_type,
 					  char                **attribute_v)
 {
-	if (! g_str_equal (mime_type, "*")
-	    && ! _g_content_type_is_a (mime_type, "audio/*")
+	gboolean matches;
+
+	matches = _g_file_attributes_matches_any_v ("general::title,"
+						    "general::format,"
+						    "general::dimensions,"
+						    "general::duration,"
+						    "frame::width,"
+						    "frame::height,"
+						    "audio-video::*",
+						    attribute_v);
+	if (!matches)
+		return FALSE;
+
+	if (g_str_equal (mime_type, "*"))
+		return TRUE;
+
+	g_return_val_if_fail (file_data != NULL, FALSE);
+
+	mime_type = gth_file_data_get_mime_type_from_content (file_data, NULL);
+	if (! _g_content_type_is_a (mime_type, "audio/*")
 	    && ! _g_content_type_is_a (mime_type, "video/*"))
 	{
 		return FALSE;
 	}
 
-	return _g_file_attributes_matches_any_v ("general::title,"
-						 "general::format,"
-						 "general::dimensions,"
-						 "general::duration,"
-						 "frame::width,"
-						 "frame::height,"
-						 "audio-video::*",
-						 attribute_v);
+	return TRUE;
 }
 
 

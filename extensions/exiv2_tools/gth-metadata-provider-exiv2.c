@@ -58,20 +58,29 @@ gth_metadata_provider_exiv2_can_read (GthMetadataProvider  *self,
 				      const char           *mime_type,
 				      char                **attribute_v)
 {
-	if (! g_str_equal (mime_type, "*") && ! _g_content_type_is_a (mime_type, "image/*"))
+	gboolean matches;
+
+	matches = _g_file_attributes_matches_any_v ("Exif::*,"
+						    "Xmp::*,"
+						    "Iptc::*,"
+						    "Embedded::Image::*,"
+						    "Embedded::Photo::*,"
+						    "general::datetime,"
+						    "general::title,"
+						    "general::description,"
+						    "general::location,"
+						    "general::tags",
+						    attribute_v);
+	if (!matches)
 		return FALSE;
 
-	return _g_file_attributes_matches_any_v ("Exif::*,"
-						 "Xmp::*,"
-						 "Iptc::*,"
-						 "Embedded::Image::*,"
-						 "Embedded::Photo::*,"
-						 "general::datetime,"
-						 "general::title,"
-						 "general::description,"
-						 "general::location,"
-						 "general::tags",
-					         attribute_v);
+	if (g_str_equal (mime_type, "*"))
+		return TRUE;
+
+	g_return_val_if_fail (file_data != NULL, FALSE);
+
+	mime_type = gth_file_data_get_mime_type_from_content (file_data, NULL);
+	return _g_content_type_is_a (mime_type, "image/*");
 }
 
 
