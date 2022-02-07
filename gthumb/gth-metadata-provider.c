@@ -206,15 +206,16 @@ _g_query_metadata_async_thread (GTask        *task,
 
 		for (scan_providers = providers; scan_providers; scan_providers = scan_providers->next) {
 			GthMetadataProvider *metadata_provider = scan_providers->data;
-			const char *mime_type = gth_file_data_get_mime_type_from_content (file_data, cancellable);
 
 			if (g_cancellable_is_cancelled (cancellable))
 				break;
 			if (gth_metadata_provider_can_read (metadata_provider,
 							    file_data,
-							    mime_type,
+							    gth_file_data_get_mime_type (file_data),
 							    qmd->attributes_v))
 			{
+				if (g_cancellable_is_cancelled (cancellable))
+					break;
 				gth_metadata_provider_read (metadata_provider, file_data, qmd->attributes, cancellable);
 			}
 		}
