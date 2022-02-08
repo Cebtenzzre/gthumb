@@ -539,14 +539,8 @@ update_volume_from_playbin (GthMediaViewerPage *self)
 {
 	double   volume, v;
 	gboolean mute;
-	guint    vol_id;
 
-	do {
-		vol_id = g_atomic_int_get(&self->priv->update_volume_id);
-	} while (!g_atomic_int_compare_and_exchange (&self->priv->update_volume_id, vol_id, 0));
-
-	if (vol_id != 0)
-		g_source_remove (vol_id);
+	g_atomic_int_set (&self->priv->update_volume_id, 0);
 
 	if ((self->priv->builder == NULL) || (self->priv->playbin == NULL))
 		return FALSE;
@@ -574,10 +568,7 @@ update_progress_cb (gpointer user_data)
 {
 	GthMediaViewerPage *self = user_data;
 
-        if (self->priv->update_progress_id != 0) {
-                g_source_remove (self->priv->update_progress_id);
-                self->priv->update_progress_id = 0;
-        }
+	self->priv->update_progress_id = 0;
 
         update_current_position_bar (self);
 
@@ -832,7 +823,7 @@ playbin_notify_volume_cb (GObject    *playbin,
 	GthMediaViewerPage *self = user_data;
 	guint               vol_id;
 
-	vol_id = g_atomic_int_get(&self->priv->update_volume_id);
+	vol_id = g_atomic_int_get (&self->priv->update_volume_id);
 	if (vol_id == 0) {
 		vol_id = g_idle_add ((GSourceFunc) update_volume_from_playbin, self);
 		if (!g_atomic_int_compare_and_exchange (&self->priv->update_volume_id, 0, vol_id))
@@ -1349,7 +1340,7 @@ gth_media_viewer_page_real_deactivate (GthViewerPage *base)
         }
 
 	do {
-		vol_id = g_atomic_int_get(&self->priv->update_volume_id);
+		vol_id = g_atomic_int_get (&self->priv->update_volume_id);
 	} while (!g_atomic_int_compare_and_exchange (&self->priv->update_volume_id, vol_id, 0));
 
 	if (vol_id != 0)
@@ -1637,7 +1628,7 @@ gth_media_viewer_page_finalize (GObject *obj)
         }
 
 	do {
-		vol_id = g_atomic_int_get(&self->priv->update_volume_id);
+		vol_id = g_atomic_int_get (&self->priv->update_volume_id);
 	} while (!g_atomic_int_compare_and_exchange (&self->priv->update_volume_id, vol_id, 0));
 
 	if (vol_id != 0)
