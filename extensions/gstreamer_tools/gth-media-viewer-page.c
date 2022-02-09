@@ -63,7 +63,7 @@ struct _GthMediaViewerPagePrivate {
 	gboolean        has_video;
 	gboolean        has_audio;
 	gulong          update_progress_id;
-	guint           update_volume_id;
+	GSource        *update_volume_source;
 	gdouble         rate;
 	GtkWidget      *mediabar;
 	GtkWidget      *mediabar_revealer;
@@ -541,16 +541,16 @@ position_popover_closed_cb (GtkPopover *popover,
 }
 
 
-static gboolean
+static void
 update_volume_from_playbin (GthMediaViewerPage *self)
 {
 	double   volume, v;
 	gboolean mute;
 
-	g_atomic_int_set (&self->priv->update_volume_id, 0);
+	g_atomic_pointer_set (&self->priv->update_volume_source, NULL);
 
 	if ((self->priv->builder == NULL) || (self->priv->playbin == NULL))
-		return FALSE;
+		return;
 
 	g_object_get (self->priv->playbin, "volume", &volume, "mute", &mute, NULL);
 	if (mute)
@@ -565,6 +565,14 @@ update_volume_from_playbin (GthMediaViewerPage *self)
 	g_signal_handlers_block_by_func (GET_WIDGET ("volume_adjustment"), volume_value_changed_cb, self);
 	gtk_adjustment_set_value (GTK_ADJUSTMENT (GET_WIDGET ("volume_adjustment")), v * 100.0);
 	g_signal_handlers_unblock_by_func (GET_WIDGET ("volume_adjustment"), volume_value_changed_cb, self);
+}
+
+
+static gboolean
+update_volume_from_playbin_idle (GthMediaViewerPage *self)
+{
+	if (!g_source_is_destroyed (g_main_current_source ()))
+		update_volume_from_playbin (self);
 
 	return FALSE;
 }
@@ -828,13 +836,14 @@ playbin_notify_volume_cb (GObject    *playbin,
 			  gpointer    user_data)
 {
 	GthMediaViewerPage *self = user_data;
-	guint               vol_id;
+	GSource            *vol_source;
 
-	vol_id = g_atomic_int_get (&self->priv->update_volume_id);
-	if (vol_id == 0) {
-		vol_id = g_idle_add ((GSourceFunc) update_volume_from_playbin, self);
-		if (!g_atomic_int_compare_and_exchange (&self->priv->update_volume_id, 0, vol_id))
-			g_source_remove (vol_id);
+	vol_source = g_atomic_pointer_get (&self->priv->update_volume_source);
+	if (vol_source == NULL) {
+		guint id = g_idle_add ((GSourceFunc) update_volume_from_playbin_idle, self);
+		vol_source = g_main_context_find_source_by_id (NULL, id);
+		if (!g_atomic_pointer_compare_and_exchange (&self->priv->update_volume_source, NULL, vol_source))
+			g_source_destroy (vol_source);
 	}
 }
 
@@ -1330,7 +1339,7 @@ static void
 gth_media_viewer_page_real_deactivate (GthViewerPage *base)
 {
 	GthMediaViewerPage *self;
-	guint               vol_id;
+	GSource            *vol_source;
 
 	self = (GthMediaViewerPage*) base;
 
@@ -1348,11 +1357,11 @@ gth_media_viewer_page_real_deactivate (GthViewerPage *base)
         }
 
 	do {
-		vol_id = g_atomic_int_get (&self->priv->update_volume_id);
-	} while (!g_atomic_int_compare_and_exchange (&self->priv->update_volume_id, vol_id, 0));
+		vol_source = g_atomic_pointer_get (&self->priv->update_volume_source);
+	} while (!g_atomic_pointer_compare_and_exchange (&self->priv->update_volume_source, vol_source, NULL));
 
-	if (vol_id != 0)
-		g_source_remove (vol_id);
+	if (vol_source != NULL)
+		g_source_destroy (vol_source);
 
 	if (self->priv->playbin != NULL) {
 		double    volume;
@@ -1639,7 +1648,7 @@ static void
 gth_media_viewer_page_finalize (GObject *obj)
 {
 	GthMediaViewerPage *self;
-	guint               vol_id;
+	GSource            *vol_source;
 
 	self = GTH_MEDIA_VIEWER_PAGE (obj);
 
@@ -1649,11 +1658,11 @@ gth_media_viewer_page_finalize (GObject *obj)
         }
 
 	do {
-		vol_id = g_atomic_int_get (&self->priv->update_volume_id);
-	} while (!g_atomic_int_compare_and_exchange (&self->priv->update_volume_id, vol_id, 0));
+		vol_source = g_atomic_pointer_get (&self->priv->update_volume_source);
+	} while (!g_atomic_pointer_compare_and_exchange (&self->priv->update_volume_source, vol_source, NULL));
 
-	if (vol_id != 0)
-		g_source_remove (vol_id);
+	if (vol_source != NULL)
+		g_source_destroy (vol_source);
 
         _g_object_unref (self->priv->icon);
 	_g_object_unref (self->priv->file_data);
@@ -1717,7 +1726,7 @@ gth_media_viewer_page_init (GthMediaViewerPage *self)
 	self->priv->video_area = NULL;
 	self->priv->audio_area = NULL;
 	self->priv->update_progress_id = 0;
-	self->priv->update_volume_id = 0;
+	self->priv->update_volume_source = NULL;
 	self->priv->has_video = FALSE;
 	self->priv->has_audio = FALSE;
 	self->priv->video_fps_n = 0;
