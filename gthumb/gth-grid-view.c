@@ -301,12 +301,10 @@ gth_grid_view_item_update_caption (GthGridViewItem  *item,
 			if (g_utf8_strlen (value, -1) > MAX_TEXT_LENGTH) {
 				char *tmp;
 
-				tmp = g_strdup (value);
-				g_utf8_strncpy (tmp, value, MAX_TEXT_LENGTH);
+				*g_utf8_offset_to_pointer (value, MAX_TEXT_LENGTH - 1) = '\0';
+				tmp = g_strdup_printf ("%s…", value);
 				g_free (value);
-				value = g_strdup_printf ("%s…", tmp);
-
-				g_free (tmp);
+				value = tmp;
 			}
 
 			escaped = g_markup_escape_text (value, -1);
