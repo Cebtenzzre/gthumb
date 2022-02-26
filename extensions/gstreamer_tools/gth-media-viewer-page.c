@@ -1343,6 +1343,9 @@ gth_media_viewer_page_real_deactivate (GthViewerPage *base)
 		self->priv->builder = NULL;
 	}
 
+	if (self->priv->playbin != NULL)
+		_g_signal_handlers_disconnect_by_data (self->priv->playbin, self);
+
         if (self->priv->update_progress_id != 0) {
                 g_source_remove (self->priv->update_progress_id);
                 self->priv->update_progress_id = 0;
@@ -1371,7 +1374,6 @@ gth_media_viewer_page_real_deactivate (GthViewerPage *base)
 		bus = gst_pipeline_get_bus (GST_PIPELINE (self->priv->playbin));
 		gst_bus_remove_signal_watch (bus);
 
-		_g_signal_handlers_disconnect_by_data (self->priv->playbin, self);
 		g_assert_finalize_object (self->priv->playbin);
 		self->priv->playbin = NULL;
 
