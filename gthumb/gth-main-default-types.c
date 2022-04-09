@@ -55,16 +55,21 @@ gth_main_register_default_file_loader (void)
 		GdkPixbufFormat  *format = scan->data;
 		char            **mime_types;
 		int               i;
+		GthImageFormat    native_format;
 
 		if (gdk_pixbuf_format_is_disabled (format))
 			continue;
 
 		mime_types = gdk_pixbuf_format_get_mime_types (format);
-		for (i = 0; mime_types[i] != NULL; i++)
+		for (i = 0; mime_types[i] != NULL; i++) {
+			native_format = g_content_type_is_a (mime_types[i], "image/gif") || g_content_type_is_a (mime_types[i], "image/webp") ?
+							GTH_IMAGE_FORMAT_GDK_PIXBUF_ANIMATION :
+							GTH_IMAGE_FORMAT_GDK_PIXBUF;
 			gth_main_register_image_loader_func (gth_pixbuf_animation_new_from_file,
-							     (g_content_type_is_a (mime_types[i], "image/gif") ? GTH_IMAGE_FORMAT_GDK_PIXBUF_ANIMATION : GTH_IMAGE_FORMAT_GDK_PIXBUF),
+							     native_format,
 							     mime_types[i],
 							     NULL);
+		}
 
 		g_strfreev (mime_types);
 	}

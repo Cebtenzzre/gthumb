@@ -865,6 +865,12 @@ gth_main_get_image_loader_func (const char     *mime_type,
 
 	generic_type = _g_mime_type_get_generic_type (mime_type);
 
+	if (mime_type != NULL
+		&& (g_content_type_is_a (mime_type, "image/gif") || g_content_type_is_a (mime_type, "image/webp")))
+	{
+		preferred_format = GTH_IMAGE_FORMAT_GDK_PIXBUF_ANIMATION;
+	}
+
 	/* give priority to the preferred format */
 
 	key = g_strdup_printf ("%s-%d", mime_type, preferred_format);
