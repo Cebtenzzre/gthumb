@@ -251,7 +251,7 @@ gth_pixbuf_animation_new_from_file (GInputStream  *istream,
 		return NULL;
 
 	image = NULL;
-	if (g_content_type_equals (mime_type, "image/gif")) {
+	if (g_content_type_equals (mime_type, "image/gif") || g_content_type_equals (mime_type, "image/webp")) {
 		GdkPixbufAnimation *animation;
 
 		animation = gdk_pixbuf_animation_new_from_stream (istream, cancellable, error);
