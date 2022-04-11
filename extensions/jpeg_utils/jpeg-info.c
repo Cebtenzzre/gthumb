@@ -443,22 +443,26 @@ _jpeg_info_get_from_stream (GInputStream	 *stream,
 
 			h = _g_input_stream_read_byte (stream, cancellable, error);
 			l = _g_input_stream_read_byte (stream, cancellable, error);
-			app1_segment_size = (h << 8) + l - 2;
+			app1_segment_size = (h << 8) + l;
 
-			app1_segment = g_new (guchar, app1_segment_size);
-			if (g_input_stream_read_all (stream,
-						     app1_segment,
-						     app1_segment_size,
-						     NULL,
-						     cancellable,
-						     error))
+			if (app1_segment_size > 2)
 			{
-				_jpeg_exif_tags_from_app1_segment (app1_segment, app1_segment_size, flags, data);
+				app1_segment_size -= 2;
+				app1_segment = g_new (guchar, app1_segment_size);
+				if (g_input_stream_read_all (stream,
+							     app1_segment,
+							     app1_segment_size,
+							     NULL,
+							     cancellable,
+							     error))
+				{
+					_jpeg_exif_tags_from_app1_segment (app1_segment, app1_segment_size, flags, data);
+				}
+
+				g_free (app1_segment);
 			}
 
 			segment_data_consumed = TRUE;
-
-			g_free (app1_segment);
 		}
 
 		if ((flags & _JPEG_INFO_ICC_PROFILE) && (marker_id == _JPEG_MARKER_APP2)) {
