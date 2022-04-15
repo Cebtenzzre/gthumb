@@ -547,8 +547,6 @@ update_volume_from_playbin (GthMediaViewerPage *self)
 	double   volume, v;
 	gboolean mute;
 
-	g_atomic_pointer_set (&self->priv->update_volume_source, NULL);
-
 	if ((self->priv->builder == NULL) || (self->priv->playbin == NULL))
 		return;
 
@@ -571,8 +569,12 @@ update_volume_from_playbin (GthMediaViewerPage *self)
 static gboolean
 update_volume_from_playbin_idle (GthMediaViewerPage *self)
 {
-	if (!g_source_is_destroyed (g_main_current_source ()))
-		update_volume_from_playbin (self);
+	GSource *cur = g_main_current_source ();
+
+	if (!g_source_is_destroyed (cur)) {
+		if (g_atomic_pointer_compare_and_exchange (&self->priv->update_volume_source, cur, NULL))
+			update_volume_from_playbin (self);
+	}
 
 	return FALSE;
 }
@@ -787,8 +789,10 @@ bus_message_cb (GstBus     *bus,
 			gth_viewer_page_update_sensitivity (GTH_VIEWER_PAGE (self));
 			gth_viewer_page_file_loaded (GTH_VIEWER_PAGE (self), self->priv->file_data, self->priv->updated_info, TRUE);
 		}
-		if ((old_state == GST_STATE_READY) || (new_state == GST_STATE_PAUSED))
+		if ((old_state == GST_STATE_READY) || (new_state == GST_STATE_PAUSED)) {
+			g_atomic_pointer_set (&self->priv->update_volume_source, NULL);
 			update_volume_from_playbin (self);
+		}
 		if ((old_state == GST_STATE_PLAYING) || (new_state == GST_STATE_PLAYING))
 			update_play_button (self, new_state);
 		break;
