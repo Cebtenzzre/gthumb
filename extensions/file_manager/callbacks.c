@@ -878,7 +878,7 @@ fm__gth_browser_load_location_after_cb (GthBrowser   *browser,
 				   G_N_ELEMENTS (non_reorderable_drag_dest_targets),
 				   GDK_ACTION_COPY | GDK_ACTION_MOVE);
 
-		source_actions = GDK_ACTION_MOVE | GDK_ACTION_ASK;
+		source_actions = GDK_ACTION_COPY | GDK_ACTION_MOVE;
 	}
 
 	/* set the drag source targets */
