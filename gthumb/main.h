@@ -29,7 +29,7 @@ extern gboolean        NewWindow;
 extern gboolean        StartInFullscreen;
 extern gboolean        StartSlideshow;
 extern gboolean        ImportPhotos;
-extern gboolean        NoSorting;
+extern char           *SortOrder;
 
 void gth_quit (gboolean restart);
 
