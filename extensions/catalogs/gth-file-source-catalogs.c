@@ -1239,7 +1239,7 @@ reorder_catalog_ready_cb (GObject  *object,
 	gsize        size;
 	GFile       *gio_file;
 
-	if (error != NULL) {
+	if (error != NULL || g_strcmp0 (gth_catalog_get_name (GTH_CATALOG (object)), _("Command Line")) == 0) {
 		reorder_data->callback (G_OBJECT (reorder_data->file_source), error, reorder_data->data);
 		reorder_data_free (reorder_data);
 		return;
