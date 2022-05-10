@@ -270,7 +270,7 @@ gth_file_data_cmp_date_time_original (GthFileData *a,
 
 GthFileDataSort exiv2_sort_types[] = {
 	{ "exif::photo::datetimeoriginal", N_("date photo was taken"),
-	  "Exif::Photo::DateTimeOriginal,Exif::Photo::DateTimeDigitized",
+	  "Exif::Photo::DateTimeOriginal,Exif::Photo::DateTimeDigitized,Exif::Image::DateTime",
 	  gth_file_data_cmp_date_time_original }
 };
 

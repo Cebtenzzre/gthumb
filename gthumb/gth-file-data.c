@@ -36,6 +36,8 @@ const char *FileDataDigitalizationTags[] = {
 	"Xmp::exif::DateTimeDigitized",
 	"Xmp::xmp::CreateDate",
 	"Xmp::photoshop::DateCreated",
+	"Exif::Image::DateTime",
+	"Xmp::exif::DateTime",
 	"Xmp::xmp::ModifyDate",
 	"Xmp::xmp::MetadataDate",
 	NULL
@@ -330,6 +332,10 @@ gth_file_data_get_digitalization_time (GthFileData *self,
 
 		m = (GthMetadata *) g_file_info_get_attribute_object (self->info, FileDataDigitalizationTags[i]);
 		if (m == NULL)
+			continue;
+
+		/* Skip invalid dates */
+		if (g_regex_match_simple ("^[0: ]*$", gth_metadata_get_raw (m), 0, 0))
 			continue;
 
 		if (! _g_time_val_from_exif_date (gth_metadata_get_raw (m), &self->priv->dtime))
