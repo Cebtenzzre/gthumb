@@ -1680,6 +1680,7 @@ metadata_ready_cb (GObject      *source_object,
 		return;
 	}
 	g_atomic_int_dec_and_test (&load_data->querying_list_attributes);
+	g_print ("(%p) Metadata query finished, now %d are pending\n", (void *)load_data, load_data->querying_list_attributes);
 	g_mutex_unlock (&load_data->qla_mutex);
 
 	if (error != NULL) {
@@ -1703,6 +1704,7 @@ load_data_ready (LoadData *load_data,
 		 && _g_file_equal ((GFile *) load_data->current->data, load_data->requested_folder->file))
 	{
 		g_atomic_int_inc (&load_data->querying_list_attributes);
+		g_print ("(%p) Metadata query started, now %d are pending\n", (void *)load_data, load_data->querying_list_attributes);
 		_g_query_metadata_async (files,
 					 _gth_browser_get_list_attributes (load_data->browser, TRUE),
 					 load_data->qla_cancellable,
