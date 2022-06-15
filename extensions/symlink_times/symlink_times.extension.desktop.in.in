@@ -1,0 +1,11 @@
+[Extension]
+Name=Symlink timestamp support
+Comment=Get timestamps of symbolic links.
+Authors=Cebtenzzre <cebtenzzre@gmail.com>
+Copyright=Copyright © 2022 Cebtenzzre
+Version=@GTHUMB_VERSION@
+Category=Browser
+
+[Loader]
+Type=module
+API=@GTHUMB_API_VERSION@
