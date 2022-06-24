@@ -79,7 +79,8 @@ typedef struct {
 	GList               *file_list; /* GthFileData */
 	GList               *files; /* GFile */
 	GthFileDataCompFunc  cmp_func;
-	gboolean             inverse_sort;
+	gboolean             inverse_sort : 1;
+	gboolean             update : 1;
 	char                *sval;
 	int                  ival;
 	GFile               *file;
@@ -1085,19 +1086,21 @@ gth_file_list_get_files (GthFileList *file_list,
 
 static void
 gfl_set_filter (GthFileList *file_list,
-		GthTest     *filter)
+		GthTest     *filter,
+		gboolean     update)
 {
 	GthFileStore *file_store;
 
 	file_store = gth_file_list_get_model (file_list);
 	if (file_store != NULL)
-		gth_file_store_set_filter (file_store, filter);
+		gth_file_store_set_filter (file_store, filter, update);
 }
 
 
 void
 gth_file_list_set_filter (GthFileList *file_list,
-			  GthTest     *filter)
+			  GthTest     *filter,
+			  gboolean     update)
 {
 	GthFileListOp *op;
 
@@ -1106,6 +1109,7 @@ gth_file_list_set_filter (GthFileList *file_list,
 		op->filter = g_object_ref (filter);
 	else
 		op->filter = gth_test_new ();
+	op->update = update;
 	_gth_file_list_queue_op (file_list, op);
 }
 
@@ -1113,26 +1117,29 @@ gth_file_list_set_filter (GthFileList *file_list,
 static void
 gfl_set_sort_func (GthFileList         *file_list,
 		   GthFileDataCompFunc  cmp_func,
-		   gboolean             inverse_sort)
+		   gboolean             inverse_sort,
+		   gboolean             reorder_now)
 {
 	GthFileStore *file_store;
 
 	file_store = gth_file_list_get_model (file_list);
 	if (file_store != NULL)
-		gth_file_store_set_sort_func (file_store, cmp_func, inverse_sort);
+		gth_file_store_set_sort_func (file_store, cmp_func, inverse_sort, reorder_now);
 }
 
 
 void
 gth_file_list_set_sort_func (GthFileList         *file_list,
 			     GthFileDataCompFunc  cmp_func,
-			     gboolean             inverse_sort)
+			     gboolean             inverse_sort,
+			     gboolean             reorder_now)
 {
 	GthFileListOp *op;
 
 	op = gth_file_list_op_new (GTH_FILE_LIST_OP_TYPE_SET_SORT_FUNC);
 	op->cmp_func = cmp_func;
 	op->inverse_sort = inverse_sort;
+	op->update = reorder_now;
 	_gth_file_list_queue_op (file_list, op);
 }
 
@@ -1889,10 +1896,10 @@ _gth_file_list_exec_next_op (GthFileList *file_list)
 		gfl_clear_list (file_list, op->sval);
 		break;
 	case GTH_FILE_LIST_OP_TYPE_SET_FILTER:
-		gfl_set_filter (file_list, op->filter);
+		gfl_set_filter (file_list, op->filter, op->update);
 		break;
 	case GTH_FILE_LIST_OP_TYPE_SET_SORT_FUNC:
-		gfl_set_sort_func (file_list, op->cmp_func, op->inverse_sort);
+		gfl_set_sort_func (file_list, op->cmp_func, op->inverse_sort, op->update);
 		break;
 	case GTH_FILE_LIST_OP_TYPE_RENAME_FILE:
 		gfl_rename_file (file_list, op->file, op->file_data);

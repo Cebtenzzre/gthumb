@@ -612,7 +612,7 @@ dlg_export_to_flickr (FlickrServer *server,
 	gth_file_list_enable_thumbs (GTH_FILE_LIST (data->list_view), TRUE);
 	gth_file_list_set_ignore_hidden (GTH_FILE_LIST (data->list_view), TRUE);
 	gth_file_list_set_caption (GTH_FILE_LIST (data->list_view), "none");
-	gth_file_list_set_sort_func (GTH_FILE_LIST (data->list_view), gth_main_get_sort_type ("file::name")->cmp_func, FALSE);
+	gth_file_list_set_sort_func (GTH_FILE_LIST (data->list_view), gth_main_get_sort_type ("file::name")->cmp_func, FALSE, TRUE);
 	gtk_widget_show (data->list_view);
 	gtk_box_pack_start (GTK_BOX (GET_WIDGET ("images_box")), data->list_view, TRUE, TRUE, 0);
 	gth_file_list_set_files (GTH_FILE_LIST (data->list_view), data->file_list);

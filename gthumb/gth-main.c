@@ -1552,7 +1552,7 @@ attribute_list_reload_required (const char *old_attributes,
 			/* g_print ("\t%s\n", new_attributes_v[i]); */
 		}
 
-	/* g_print ("reload required: %d\n", reload_required); */
+	g_printerr ("reload required: %d\n", reload_required);
 
 	g_strfreev (new_attributes_v);
 	g_strfreev (old_attributes_v);

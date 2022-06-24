@@ -967,7 +967,6 @@ typedef struct {
 	GFile         *entry_point;
 	GthFileSource *file_source;
 	GCancellable  *cancellable;
-	GCancellable  *qla_cancellable;
 	GMutex         qla_mutex;
 	gint           querying_list_attributes;
 } LoadData;
@@ -998,7 +997,6 @@ load_data_new (GthBrowser *browser,
 	load_data->action = action;
 	load_data->automatic = automatic;
 	load_data->cancellable = g_cancellable_new ();
-	load_data->qla_cancellable = g_cancellable_new ();
 	g_mutex_init (&load_data->qla_mutex);
 
 	browser->priv->load_data_queue = g_list_prepend (browser->priv->load_data_queue, load_data);
@@ -1282,7 +1280,7 @@ _gth_browser_get_list_attributes (GthBrowser *browser,
 
 
 static gboolean
-_gth_browser_reload_required (GthBrowser *browser)
+_gth_browser_reload_required (GthBrowser *browser, gboolean peek)
 {
 	char       *old_attributes;
 	const char *new_attributes;
@@ -1292,7 +1290,12 @@ _gth_browser_reload_required (GthBrowser *browser)
 	new_attributes = _gth_browser_get_list_attributes (browser, TRUE);
 	reload_required = attribute_list_reload_required (old_attributes, new_attributes);
 
-	g_free (old_attributes);
+	if (peek) {
+		g_free (browser->priv->list_attributes);
+		browser->priv->list_attributes = old_attributes;
+	} else {
+		g_free (old_attributes);
+	}
 
 	return reload_required;
 }
@@ -1305,8 +1308,20 @@ write_sort_order_ready_cb (GObject  *source,
 {
 	GthBrowser *browser = user_data;
 
-	if (browser->priv->constructed && _gth_browser_reload_required (browser))
+	if (browser->priv->constructed && _gth_browser_reload_required (browser, FALSE)) {
+		g_printerr ("write_sort_order_ready_cb: reload will be required\n");
+		if (browser->priv->last_folder_to_open != NULL) {
+			g_printerr (" and last_folder_to_open is known\n");
+			LoadData *last_load_data = (LoadData *) browser->priv->last_folder_to_open;
+			g_mutex_lock (&last_load_data->qla_mutex);
+			if (g_atomic_int_get (&last_load_data->querying_list_attributes)) {
+				g_printerr (" and querying_list_attributes is set -> requesting cancellation\n");
+				g_cancellable_cancel (last_load_data->cancellable);
+			}
+			g_mutex_unlock (&last_load_data->qla_mutex);
+		}
 		gth_browser_reload (browser);
+	}
 }
 
 
@@ -1317,48 +1332,42 @@ _gth_browser_set_sort_order (GthBrowser      *browser,
 			     gboolean         save,
 			     gboolean         update_view)
 {
-	GthFileDataSort *prev_sort_type = browser->priv->current_sort_type;
+	gboolean reload_required;
 
 	g_return_if_fail (sort_type != NULL);
 
 	browser->priv->current_sort_type = sort_type;
 	browser->priv->current_sort_inverse = inverse;
+	reload_required = _gth_browser_reload_required (browser, TRUE);
 
-	gth_file_list_set_sort_func (GTH_FILE_LIST (browser->priv->file_list),
-				     sort_type->cmp_func,
-				     inverse);
+	if (browser->priv->constructed && (browser->priv->location != NULL)) {
+		g_file_info_set_attribute_string (browser->priv->location->info, "sort::type", (sort_type != NULL) ? sort_type->name : "general::unsorted");
+		g_file_info_set_attribute_boolean (browser->priv->location->info, "sort::inverse", (sort_type != NULL) ? inverse : FALSE);
 
-	if (prev_sort_type == NULL || strcmp(sort_type->required_attributes, prev_sort_type->required_attributes) != 0) {
-		if (browser->priv->last_folder_to_open != NULL) {
-			LoadData *last_load_data = (LoadData *) browser->priv->last_folder_to_open;
-			g_mutex_lock (&last_load_data->qla_mutex);
-			if (g_atomic_int_get (&last_load_data->querying_list_attributes)) {
-				/* Request a restart */
-				g_cancellable_cancel (last_load_data->qla_cancellable);
-			}
-			g_mutex_unlock (&last_load_data->qla_mutex);
+		if (update_view) {
+			_gth_browser_update_current_file_position (browser);
+			gth_browser_update_title (browser);
+		}
+
+		if (save && (browser->priv->location_source != NULL)) {
+			// XXX: this calls gth_browser_reload -> QAM
+			g_printerr (" calling gth_file_source_write_metadata, reload_required=%d\n", reload_required);
+			gth_file_source_write_metadata (browser->priv->location_source,
+							browser->priv->location,
+							"sort::type,sort::inverse",
+							write_sort_order_ready_cb,
+							browser);
+			if (reload_required)
+				return;
 		}
 	}
 
-	if (! browser->priv->constructed || (browser->priv->location == NULL))
-		return;
-
-	g_file_info_set_attribute_string (browser->priv->location->info, "sort::type", (sort_type != NULL) ? sort_type->name : "general::unsorted");
-	g_file_info_set_attribute_boolean (browser->priv->location->info, "sort::inverse", (sort_type != NULL) ? inverse : FALSE);
-
-	if (update_view) {
-		_gth_browser_update_current_file_position (browser);
-		gth_browser_update_title (browser);
-	}
-
-	if (! save || (browser->priv->location_source == NULL))
-		return;
-
-	gth_file_source_write_metadata (browser->priv->location_source,
-					browser->priv->location,
-					"sort::type,sort::inverse",
-					write_sort_order_ready_cb,
-					browser);
+	// XXX: this resorts, even if we don't yet have the required metadata
+	g_printerr (" since we would not reload, calling gth_file_list_set_sort_func\n");
+	gth_file_list_set_sort_func (GTH_FILE_LIST (browser->priv->file_list),
+				     sort_type->cmp_func,
+				     inverse,
+				     update_view);
 }
 
 
@@ -1576,7 +1585,7 @@ load_data_continue (LoadData *load_data,
 		}
 
 		filter = _gth_browser_get_file_filter (browser);
-		gth_file_list_set_filter (GTH_FILE_LIST (browser->priv->file_list), filter);
+		gth_file_list_set_filter (GTH_FILE_LIST (browser->priv->file_list), filter, FALSE);
 		gth_file_list_set_files (GTH_FILE_LIST (browser->priv->file_list), files);
 		g_object_unref (filter);
 
@@ -1664,23 +1673,10 @@ metadata_ready_cb (GObject      *source_object,
 
 	files = _g_query_metadata_finish (result, &error);
 
+	g_printerr ("in metadata_ready_cb, load_data=%p\n", (void *)load_data);
 	g_mutex_lock (&load_data->qla_mutex);
-	if (g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED) && !g_cancellable_is_cancelled (load_data->cancellable)) {
-		/* Restart requested */
-		QueryMetadataData *qmd;
-		g_mutex_unlock (&load_data->qla_mutex);
-		g_assert (g_cancellable_is_cancelled (load_data->qla_cancellable));
-		g_cancellable_reset (load_data->qla_cancellable);
-		qmd = g_task_get_task_data (G_TASK (result));
-		_g_query_metadata_async (qmd->files,
-					 _gth_browser_get_list_attributes (load_data->browser, TRUE),
-					 load_data->qla_cancellable,
-					 metadata_ready_cb,
-					 load_data);
-		return;
-	}
 	g_atomic_int_dec_and_test (&load_data->querying_list_attributes);
-	g_print ("(%p) Metadata query finished, now %d are pending\n", (void *)load_data, load_data->querying_list_attributes);
+	g_printerr (" metadata query %s, now %d are pending\n", error ? "cancelled" : "finished", load_data->querying_list_attributes);
 	g_mutex_unlock (&load_data->qla_mutex);
 
 	if (error != NULL) {
@@ -1697,6 +1693,7 @@ load_data_ready (LoadData *load_data,
 		 GList    *files,
 		 GError   *error)
 {
+	g_printerr ("in load_data_ready, load_data=%p\n", (void *)load_data);
 	if (error != NULL) {
 		load_data_error (load_data, error);
 	}
@@ -1704,10 +1701,10 @@ load_data_ready (LoadData *load_data,
 		 && _g_file_equal ((GFile *) load_data->current->data, load_data->requested_folder->file))
 	{
 		g_atomic_int_inc (&load_data->querying_list_attributes);
-		g_print ("(%p) Metadata query started, now %d are pending\n", (void *)load_data, load_data->querying_list_attributes);
+		g_printerr (" metadata query started, now %d are pending\n", load_data->querying_list_attributes);
 		_g_query_metadata_async (files,
 					 _gth_browser_get_list_attributes (load_data->browser, TRUE),
-					 load_data->qla_cancellable,
+					 load_data->cancellable,
 					 metadata_ready_cb,
 					 load_data);
 	}
@@ -1888,10 +1885,7 @@ _gth_browser_load (GthBrowser *browser,
 
 	if (gth_action_changes_folder (action) && (browser->priv->last_folder_to_open != NULL)) {
 		LoadData *last_load_data = (LoadData *) browser->priv->last_folder_to_open;
-		g_mutex_lock (&last_load_data->qla_mutex);
 		g_cancellable_cancel (last_load_data->cancellable);
-		g_cancellable_cancel (last_load_data->qla_cancellable);
-		g_mutex_unlock (&last_load_data->qla_mutex);
 	}
 
 	entry_point = gth_main_get_nearest_entry_point (location);
@@ -3176,13 +3170,13 @@ filterbar_changed_cb (GthFilterbar *filterbar,
 	GthTest *filter;
 
 	filter = _gth_browser_get_file_filter (browser);
-	gth_file_list_set_filter (GTH_FILE_LIST (browser->priv->file_list), filter);
+	gth_file_list_set_filter (GTH_FILE_LIST (browser->priv->file_list), filter, TRUE);
 	g_object_unref (filter);
 
 	_gth_browser_update_statusbar_list_info (browser);
 	gth_browser_update_sensitivity (browser);
 
-	if (_gth_browser_reload_required (browser))
+	if (_gth_browser_reload_required (browser, FALSE))
 		gth_browser_reload (browser);
 	else if (browser->priv->current_file != NULL)
 		gth_file_list_make_file_visible (GTH_FILE_LIST (browser->priv->file_list), browser->priv->current_file->file);
@@ -3773,7 +3767,7 @@ pref_general_filter_changed (GSettings  *settings,
 	GthTest    *filter;
 
 	filter = _gth_browser_get_file_filter (browser);
-	gth_file_list_set_filter (GTH_FILE_LIST (browser->priv->file_list), filter);
+	gth_file_list_set_filter (GTH_FILE_LIST (browser->priv->file_list), filter, TRUE);
 
 	g_object_unref (filter);
 }
@@ -4302,7 +4296,7 @@ pref_thumbnail_caption_changed (GSettings  *settings,
 	caption = g_settings_get_string (settings, key);
 	gth_file_list_set_caption (GTH_FILE_LIST (browser->priv->file_list), caption);
 
-	if (_gth_browser_reload_required (browser))
+	if (_gth_browser_reload_required (browser, FALSE))
 		gth_browser_reload (browser);
 
 	g_free (caption);
@@ -7053,10 +7047,7 @@ _gth_browser_cancel (GthBrowser *browser,
 
 		if (data->file_source != NULL)
 			gth_file_source_cancel (data->file_source);
-		g_mutex_lock (&data->qla_mutex);
 		g_cancellable_cancel (data->cancellable);
-		g_cancellable_cancel (data->qla_cancellable);
-		g_mutex_unlock (&data->qla_mutex);
 	}
 
 	for (scan = browser->priv->load_file_data_queue; scan; scan = scan->next) {

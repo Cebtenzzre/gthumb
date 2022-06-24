@@ -94,10 +94,12 @@ void              gth_file_list_rename_file       (GthFileList          *file_li
 						   GFile                *file,
 						   GthFileData          *file_data);
 void              gth_file_list_set_filter        (GthFileList          *file_list,
-						   GthTest              *filter);
+						   GthTest              *filter,
+						   gboolean              update);
 void              gth_file_list_set_sort_func     (GthFileList          *file_list,
 						   GthFileDataCompFunc   cmp_func,
-						   gboolean              inverse_sort);
+						   gboolean              inverse_sort,
+						   gboolean              reorder_now);
 void              gth_file_list_enable_thumbs     (GthFileList          *file_list,
 						   gboolean              enable);
 void              gth_file_list_set_ignore_hidden (GthFileList          *file_list,

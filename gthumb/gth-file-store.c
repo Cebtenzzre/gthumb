@@ -1107,7 +1107,8 @@ g_print ("  INSERT: %d\n", i);
 
 void
 gth_file_store_set_filter (GthFileStore *file_store,
-			   GthTest      *filter)
+			   GthTest      *filter,
+			   gboolean      update)
 {
 	if (file_store->priv->filter != NULL) {
 		g_object_unref (file_store->priv->filter);
@@ -1119,7 +1120,8 @@ gth_file_store_set_filter (GthFileStore *file_store,
 	else
 		file_store->priv->filter = gth_test_new ();
 
-	_gth_file_store_update_visibility (file_store, NULL, -1);
+	if (update)
+		_gth_file_store_update_visibility (file_store, NULL, -1);
 }
 
 
@@ -1166,10 +1168,12 @@ _gth_file_store_set_sort_func (GthFileStore        *file_store,
 void
 gth_file_store_set_sort_func (GthFileStore        *file_store,
 			      GthFileDataCompFunc  cmp_func,
-			      gboolean             inverse_sort)
+			      gboolean             inverse_sort,
+			      gboolean             reorder_now)
 {
 	_gth_file_store_set_sort_func (file_store, cmp_func, inverse_sort);
-	_gth_file_store_reorder (file_store);
+	if (reorder_now)
+		_gth_file_store_reorder (file_store);
 }
 
 

@@ -515,7 +515,7 @@ filter_combobox_changed_cb (GtkComboBox *widget,
 	idx = gtk_combo_box_get_active (widget);
 	test_id = g_list_nth (data->general_tests, idx)->data;
 	test = gth_main_get_registered_object (GTH_TYPE_TEST, test_id);
-	gth_file_list_set_filter (GTH_FILE_LIST (data->file_list), test);
+	gth_file_list_set_filter (GTH_FILE_LIST (data->file_list), test, TRUE);
 
 	g_settings_set_string (data->settings, PREF_PHOTO_IMPORTER_FILTER, test_id);
 
@@ -626,7 +626,7 @@ dlg_photo_importer (GthBrowser            *browser,
 
 	data->file_list = gth_file_list_new (gth_grid_view_new (), GTH_FILE_LIST_MODE_NORMAL, FALSE);
 	sort_type = gth_main_get_sort_type ("file::mtime");
-	gth_file_list_set_sort_func (GTH_FILE_LIST (data->file_list), sort_type->cmp_func, FALSE);
+	gth_file_list_set_sort_func (GTH_FILE_LIST (data->file_list), sort_type->cmp_func, FALSE, TRUE);
 	gth_file_list_enable_thumbs (GTH_FILE_LIST (data->file_list), TRUE);
 	gth_file_list_set_ignore_hidden (GTH_FILE_LIST (data->file_list), TRUE);
 	gth_file_list_set_thumb_size (GTH_FILE_LIST (data->file_list), 128);
@@ -651,7 +651,7 @@ dlg_photo_importer (GthBrowser            *browser,
 		test = gth_main_get_registered_object (GTH_TYPE_TEST, registered_test_id);
 		if (strcmp (registered_test_id, default_filter) == 0) {
 			active_filter = i_general;
-			gth_file_list_set_filter (GTH_FILE_LIST (data->file_list), test);
+			gth_file_list_set_filter (GTH_FILE_LIST (data->file_list), test, TRUE);
 		}
 
 		data->general_tests = g_list_prepend (data->general_tests, g_strdup (gth_test_get_id (test)));

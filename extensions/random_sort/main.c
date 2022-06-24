@@ -24,6 +24,14 @@ cmp_hash (GthFileData *a,
 	if (hasha == 0 || hashb == 0 || hasha == hashb) {
 		const char *key_a, *key_b;
 
+		if (hasha == 0 || hashb == 0) {
+			g_printerr (
+				"WARNING: cmp_hash using fallback sort because%s%s\n",
+				hasha == 0 ? " hasha=0" : "",
+				hashb == 0 ? " hashb=0" : ""
+			);
+		}
+
 		key_a = gth_file_data_get_filename_sort_key (a);
 		key_b = gth_file_data_get_filename_sort_key (b);
 		return strcoll (key_a, key_b);

@@ -67,10 +67,12 @@ struct _GthFileStoreClass
 GType           gth_file_store_get_type          (void) G_GNUC_CONST;
 GthFileStore *  gth_file_store_new               (void);
 void            gth_file_store_set_filter        (GthFileStore         *file_store,
-						  GthTest              *filter);
+						  GthTest              *filter,
+						  gboolean              update);
 void            gth_file_store_set_sort_func     (GthFileStore         *file_store,
 						  GthFileDataCompFunc   cmp_func,
-						  gboolean              inverse_sort);
+						  gboolean              inverse_sort,
+						  gboolean              reorder_now);
 GList *         gth_file_store_get_all           (GthFileStore         *file_store);
 int             gth_file_store_n_files           (GthFileStore         *file_store);
 GList *         gth_file_store_get_visibles      (GthFileStore         *file_store);
