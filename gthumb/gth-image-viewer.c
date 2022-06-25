@@ -453,11 +453,8 @@ gth_image_viewer_realize (GtkWidget *widget)
 	gtk_widget_set_window (widget, window);
 	gtk_style_context_set_background (gtk_widget_get_style_context (widget), window);
 
-	self->priv->cursor = _gdk_cursor_new_for_widget (widget, GDK_LEFT_PTR);
 	self->priv->cursor_void = _gdk_cursor_new_for_widget (widget, GDK_BLANK_CURSOR);
-	if (self->priv->cursor_visible)
-		gdk_window_set_cursor (window, self->priv->cursor);
-	else
+	if (!self->priv->cursor_visible)
 		gdk_window_set_cursor (window, self->priv->cursor_void);
 
 	gth_image_viewer_tool_realize (self->priv->tool);
@@ -2526,8 +2523,7 @@ gth_image_viewer_show_cursor (GthImageViewer *self)
 		return;
 
 	self->priv->cursor_visible = TRUE;
-	if (self->priv->cursor != NULL)
-		gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (self)), self->priv->cursor);
+	gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (self)), self->priv->cursor);
 }
 
 
@@ -2549,15 +2545,9 @@ gth_image_viewer_set_cursor (GthImageViewer *self,
 {
 	if (cursor != NULL)
 		g_object_ref (cursor);
-
-	if (self->priv->cursor != NULL) {
+	if (self->priv->cursor != NULL)
 		g_object_unref (self->priv->cursor);
-		self->priv->cursor = NULL;
-	}
-	if (cursor != NULL)
-		self->priv->cursor = cursor;
-	else
-		self->priv->cursor = g_object_ref (self->priv->cursor_void);
+	self->priv->cursor = cursor;
 
 	if (! gtk_widget_get_realized (GTK_WIDGET (self)))
 		return;

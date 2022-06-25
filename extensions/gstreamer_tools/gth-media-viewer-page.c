@@ -69,7 +69,6 @@ struct _GthMediaViewerPagePrivate {
 	GtkWidget      *mediabar_revealer;
 	GdkPixbuf      *icon;
 	PangoLayout    *caption_layout;
-	GdkCursor      *cursor;
 	GdkCursor      *cursor_void;
 	gboolean        cursor_visible;
 	GthScreensaver *screensaver;
@@ -158,12 +157,9 @@ video_area_realize_cb (GtkWidget *widget,
 {
 	GthMediaViewerPage *self = user_data;
 
-	self->priv->cursor = _gdk_cursor_new_for_widget (widget, GDK_LEFT_PTR);
 	self->priv->cursor_void = _gdk_cursor_new_for_widget (self->priv->video_area, GDK_BLANK_CURSOR);
 
-	if (self->priv->cursor_visible)
-		gdk_window_set_cursor (gtk_widget_get_window (self->priv->video_area), self->priv->cursor);
-	else
+	if (!self->priv->cursor_visible)
 		gdk_window_set_cursor (gtk_widget_get_window (self->priv->video_area), self->priv->cursor_void);
 
 	self->priv->caption_layout = gtk_widget_create_pango_layout (widget, "");
@@ -179,11 +175,6 @@ video_area_unrealize_cb (GtkWidget *widget,
 			 gpointer   user_data)
 {
 	GthMediaViewerPage *self = user_data;
-
-	if (self->priv->cursor) {
-		g_object_unref (self->priv->cursor);
-		self->priv->cursor = NULL;
-	}
 
 	if (self->priv->cursor_void) {
 		g_object_unref (self->priv->cursor_void);
@@ -1572,8 +1563,8 @@ gth_media_viewer_page_real_show_pointer (GthViewerPage *base,
 	self->priv->cursor_visible = show;
 
 	if (self->priv->video_area != NULL) {
-		if (show && (self->priv->cursor != NULL))
-			gdk_window_set_cursor (gtk_widget_get_window (self->priv->video_area), self->priv->cursor);
+		if (show)
+			gdk_window_set_cursor (gtk_widget_get_window (self->priv->video_area), NULL);
 
 		if (! show && gth_browser_get_is_fullscreen (self->priv->browser) && (self->priv->cursor_void != NULL))
 			gdk_window_set_cursor (gtk_widget_get_window (self->priv->video_area), self->priv->cursor_void);

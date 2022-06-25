@@ -93,17 +93,13 @@ gth_image_rotator_set_viewer (GthImageViewerTool *base,
 			      GthImageViewer     *viewer)
 {
 	GthImageRotator *self = GTH_IMAGE_ROTATOR (base);
-	GdkCursor       *cursor;
 
 	self->priv->viewer = viewer;
 	self->priv->original_fit_mode = gth_image_viewer_get_fit_mode (GTH_IMAGE_VIEWER (viewer));
 	self->priv->original_zoom_enabled = gth_image_viewer_get_zoom_enabled (GTH_IMAGE_VIEWER (viewer));
 	gth_image_viewer_set_fit_mode (GTH_IMAGE_VIEWER (viewer), GTH_FIT_SIZE_IF_LARGER);
 	gth_image_viewer_set_zoom_enabled (GTH_IMAGE_VIEWER (viewer), FALSE);
-
-	cursor = _gdk_cursor_new_for_widget (GTK_WIDGET (self->priv->viewer), GDK_LEFT_PTR);
-	gth_image_viewer_set_cursor (self->priv->viewer, cursor);
-	g_object_unref (cursor);
+	gth_image_viewer_set_cursor (self->priv->viewer, NULL);
 }
 
 
@@ -484,7 +480,6 @@ gth_image_rotator_button_release (GthImageViewerTool *base,
 				  GdkEventButton     *event)
 {
 	GthImageRotator *self = GTH_IMAGE_ROTATOR (base);
-	GdkCursor       *cursor;
 
 	self->priv->dragging = FALSE;
 	self->priv->drag_p1.x = 0;
@@ -492,10 +487,7 @@ gth_image_rotator_button_release (GthImageViewerTool *base,
 	self->priv->drag_p2.x = 0;
 	self->priv->drag_p2.y = 0;
 
-	cursor = _gdk_cursor_new_for_widget (GTK_WIDGET (self->priv->viewer), GDK_LEFT_PTR);
-	gth_image_viewer_set_cursor (self->priv->viewer, cursor);
-	g_object_unref (cursor);
-
+	gth_image_viewer_set_cursor (self->priv->viewer, NULL);
 	gtk_widget_queue_draw (GTK_WIDGET (self->priv->viewer));
 
 	return FALSE;

@@ -228,14 +228,8 @@ gth_image_dragger_unrealize (GthImageViewerTool *base)
 static void
 _gth_image_dragger_update_cursor (GthImageDragger *self)
 {
-	GdkCursor *cursor;
-
 	g_return_if_fail (self->priv->viewer != NULL);
-
-	cursor = _gdk_cursor_new_for_widget (GTK_WIDGET (self->priv->viewer), GDK_LEFT_PTR);
-	gth_image_viewer_set_cursor (self->priv->viewer, cursor);
-
-	g_object_unref (cursor);
+	gth_image_viewer_set_cursor (self->priv->viewer, NULL);
 }
 
 
