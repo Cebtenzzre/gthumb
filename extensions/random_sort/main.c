@@ -32,8 +32,8 @@ cmp_hash (GthFileData *a,
 			);
 		}
 
-		key_a = gth_file_data_get_filename_sort_key (a);
-		key_b = gth_file_data_get_filename_sort_key (b);
+		key_a = g_file_info_get_display_name (a->info);
+		key_b = g_file_info_get_display_name (b->info);
 		return strcoll (key_a, key_b);
 	}
 

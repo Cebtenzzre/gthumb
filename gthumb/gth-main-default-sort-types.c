@@ -46,14 +46,8 @@ gth_file_data_cmp_filename_strcoll (GthFileData *a,
 {
 	const char *key_a, *key_b;
 
-	if (a->info == NULL)
-		key_a = NULL;
-	else
-		key_a = g_file_info_get_display_name (a->info);
-	if (b->info == NULL)
-		key_b = NULL;
-	else
-		key_b = g_file_info_get_display_name (b->info);
+	key_a = g_file_info_get_display_name (a->info);
+	key_b = g_file_info_get_display_name (b->info);
 
 	return strcoll (key_a, key_b);
 }
