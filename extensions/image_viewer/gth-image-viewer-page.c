@@ -1664,8 +1664,14 @@ save_image_task_completed_cb (GthTask *task,
 		_gtk_error_dialog_from_gerror_show (GTK_WINDOW (self->priv->browser), _("Could not save the file"), error);
 
 	if (! error_occurred) {
-		GFile *folder;
-		GList *file_list;
+		GFile       *folder;
+		GList       *file_list;
+		GthFileData *current_file;
+
+		/* file saved successfully, consider it unmodified */
+		current_file = gth_browser_get_current_file (self->priv->browser);
+		if (current_file != NULL)
+			g_file_info_set_attribute_boolean (current_file->info, "gth::file::is-modified", FALSE);
 
 		folder = g_file_get_parent (data->file_to_save->file);
 		file_list = g_list_prepend (NULL, g_object_ref (data->file_to_save->file));
@@ -1709,7 +1715,7 @@ _gth_image_viewer_page_real_save (GthViewerPage *base,
 	if (current_file == NULL)
 		return;
 
-	data->file_to_save = g_object_ref (current_file);
+	data->file_to_save = gth_file_data_dup (current_file);
 	data->original_file = gth_file_data_dup (current_file);
 	if (file != NULL)
 		gth_file_data_set_file (data->file_to_save, file);
