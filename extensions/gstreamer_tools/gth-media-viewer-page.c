@@ -781,7 +781,14 @@ bus_message_cb (GstBus     *bus,
 			gth_viewer_page_file_loaded (GTH_VIEWER_PAGE (self), self->priv->file_data, self->priv->updated_info, TRUE);
 		}
 		if ((old_state == GST_STATE_READY) || (new_state == GST_STATE_PAUSED)) {
-			g_atomic_pointer_set (&self->priv->update_volume_source, NULL);
+			GSource *vol_source;
+			do {
+				vol_source = g_atomic_pointer_get (&self->priv->update_volume_source);
+			} while (!g_atomic_pointer_compare_and_exchange (&self->priv->update_volume_source, vol_source, NULL));
+
+			if (vol_source != NULL)
+				g_source_destroy (vol_source);
+
 			update_volume_from_playbin (self);
 		}
 		if ((old_state == GST_STATE_PLAYING) || (new_state == GST_STATE_PLAYING))
