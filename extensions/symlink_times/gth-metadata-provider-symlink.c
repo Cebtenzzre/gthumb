@@ -56,7 +56,7 @@ gth_metadata_provider_symlink_read (GthMetadataProvider *self,
 	char      *value;
 
 	info = g_file_query_info (file_data->file,
-				  "time::*",
+				  G_FILE_ATTRIBUTE_STANDARD_IS_SYMLINK ",time::*",
 				  G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
 				  cancellable,
 				  NULL);
@@ -68,17 +68,21 @@ gth_metadata_provider_symlink_read (GthMetadataProvider *self,
 	g_file_info_set_attribute_uint64 (file_data->info, "gth::file::symlink-created", time.tv_sec);
 	g_file_info_set_attribute_uint32 (file_data->info, "gth::file::symlink-created-usec", time.tv_usec);
 
-	value = _g_time_val_strftime (&time, "%x %X");
-	g_file_info_set_attribute_string (file_data->info, "gth::file::symlink-display-btime", value);
-	g_free (value);
+	if (g_file_info_get_is_symlink (file_data->info)) {
+		value = _g_time_val_strftime (&time, "%x %X");
+		g_file_info_set_attribute_string (file_data->info, "gth::file::symlink-display-btime", value);
+		g_free (value);
+	}
 
 	g_file_info_get_modification_time (info, &time);
 	g_file_info_set_attribute_uint64 (file_data->info, "gth::file::symlink-modified", time.tv_sec);
 	g_file_info_set_attribute_uint32 (file_data->info, "gth::file::symlink-modified-usec", time.tv_usec);
 
-	value = _g_time_val_strftime (&time, "%x %X");
-	g_file_info_set_attribute_string (file_data->info, "gth::file::symlink-display-mtime", value);
-	g_free (value);
+	if (g_file_info_get_is_symlink (file_data->info)) {
+		value = _g_time_val_strftime (&time, "%x %X");
+		g_file_info_set_attribute_string (file_data->info, "gth::file::symlink-display-mtime", value);
+		g_free (value);
+	}
 
 	g_object_unref (info);
 }
