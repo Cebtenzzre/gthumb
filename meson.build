@@ -225,6 +225,8 @@ with_webalbums = bison.found() and flex.found()
 
 vector_ops = (c_comp.get_id() == 'gcc') and (c_comp.version().version_compare('>=4.0.7'))
 
+x11_dep = dependency('x11', required: false)
+
 common_deps = [
   libm_dep,
   dependency('threads'),

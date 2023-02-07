@@ -340,7 +340,8 @@ gthumb_exe = executable('gthumb',
     with_webservices ? libsoup_dep : [],
     with_webservices ? libjson_glib_dep : [],
     use_libsecret ? libsecret_dep : [],
-    use_libbrasero ? libbrasero_dep : []
+    use_libbrasero ? libbrasero_dep : [],
+    x11_dep
   ],
   include_directories : [ config_inc, gthumb_inc ],
   c_args : c_args,
