@@ -1206,7 +1206,8 @@ _gth_folder_tree_set_file_data (GthFolderTree *folder_tree,
 	if (display_name == NULL)
 		return FALSE;
 
-	name_for_sorting = g_file_info_get_edit_name (file_data->info);
+	/* cannot use helper because it requires the attribute to be present */
+	name_for_sorting = g_file_info_get_attribute_string (file_data->info, G_FILE_ATTRIBUTE_STANDARD_EDIT_NAME);
 	if (name_for_sorting == NULL)
 		name_for_sorting = display_name;
 
@@ -1218,7 +1219,7 @@ _gth_folder_tree_set_file_data (GthFolderTree *folder_tree,
 			    COLUMN_FILE_DATA, file_data,
 			    COLUMN_NAME, display_name,
 			    COLUMN_SORT_KEY, sort_key,
-			    COLUMN_SORT_ORDER, g_file_info_get_sort_order (file_data->info),
+			    COLUMN_SORT_ORDER, g_file_info_get_attribute_int32 (file_data->info, G_FILE_ATTRIBUTE_STANDARD_SORT_ORDER),
 			    COLUMN_SECONDARY_SORT_ORDER, _g_file_info_get_secondary_sort_order (file_data->info),
 			    COLUMN_NO_CHILD, g_file_info_get_attribute_boolean (file_data->info, "gthumb::no-child"),
 			    COLUMN_LOADED, FALSE,
